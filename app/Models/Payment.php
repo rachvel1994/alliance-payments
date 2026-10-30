@@ -27,7 +27,8 @@ class Payment extends Model
     protected function casts(): array
     {
         return [
-            'paid_at' => 'date'
+            'paid_at' => 'date',
+            'amount_minor' => 'integer',
         ];
     }
 

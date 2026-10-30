@@ -26,7 +26,8 @@ class Apartment extends Model
     protected function casts(): array
     {
         return [
-            'area' => 'decimal:2'
+            'area' => 'decimal:2',
+            'price_minor' => 'integer',
         ];
     }
 

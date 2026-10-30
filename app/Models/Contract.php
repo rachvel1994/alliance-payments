@@ -24,7 +24,8 @@ class Contract extends Model
     protected function casts(): array
     {
         return [
-            'contract_date' => 'date'
+            'contract_date' => 'date',
+            'price_minor' => 'integer',
         ];
     }
 

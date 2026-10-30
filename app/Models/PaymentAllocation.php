@@ -16,6 +16,10 @@ class PaymentAllocation extends Model
         'amount_minor',
     ];
 
+    protected $casts = [
+        'amount_minor' => 'integer',
+    ];
+
     public function allocationRun(): BelongsTo
     {
         return $this->belongsTo(AllocationRun::class);

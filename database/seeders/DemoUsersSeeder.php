@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\User;
@@ -30,20 +32,21 @@ class DemoUsersSeeder extends Seeder
         ];
 
         foreach ($users as $data) {
-            if (!is_string($data['password']) || $data['password'] === '') {
+            if (! is_string($data['password']) || $data['password'] === '') {
                 throw new RuntimeException(
                     "Missing demo password for {$data['role']}"
                 );
             }
 
-            $user = User::updateOrCreate(
-                ['email' => $data['email']],
-                [
-                    'name' => $data['name'],
-                    'password' => Hash::make($data['password']),
-                    'email_verified_at' => now(),
-                ]
-            );
+            $user = User::query()->firstOrNew(['email' => $data['email']]);
+            $user->name = $data['name'];
+            $user->email_verified_at ??= now();
+
+            if (! $user->exists || ! Hash::check($data['password'], $user->password)) {
+                $user->password = Hash::make($data['password']);
+            }
+
+            $user->save();
 
             $user->syncRoles([$data['role']]);
         }

@@ -20,6 +20,7 @@ class PaymentImport extends Model
         'duplicate_rows',
         'rejected_rows',
         'completed_at',
+        'error_message',
     ];
 
     protected function casts(): array

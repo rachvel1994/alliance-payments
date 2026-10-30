@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Project;
@@ -7,12 +9,13 @@ use Illuminate\Database\Seeder;
 
 class ProjectsSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        Project::query()->insertOrIgnore($this->projects());
+        Project::query()->upsert(
+            $this->projects(),
+            ['name', 'city'],
+            ['name', 'city'],
+        );
     }
 
     private function projects(): array
@@ -20,12 +23,12 @@ class ProjectsSeeder extends Seeder
         return [
             [
                 'name' => 'Sea Tower',
-                'city' => 'Batumi'
+                'city' => 'Batumi',
             ],
             [
                 'name' => 'Green Hill',
-                'city' => 'Batumi'
-            ]
+                'city' => 'Batumi',
+            ],
         ];
     }
 }
