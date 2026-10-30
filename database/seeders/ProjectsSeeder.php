@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Project;
 use Illuminate\Database\Seeder;
 
 class ProjectsSeeder extends Seeder
@@ -12,6 +12,20 @@ class ProjectsSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        Project::query()->insertOrIgnore($this->projects());
+    }
+
+    private function projects(): array
+    {
+        return [
+            [
+                'name' => 'Sea Tower',
+                'city' => 'Batumi'
+            ],
+            [
+                'name' => 'Green Hill',
+                'city' => 'Batumi'
+            ]
+        ];
     }
 }

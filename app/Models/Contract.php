@@ -1,9 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contract extends Model
 {
@@ -19,7 +23,9 @@ class Contract extends Model
 
     protected function casts(): array
     {
-        return ['contract_date' => 'date'];
+        return [
+            'contract_date' => 'date'
+        ];
     }
 
     public function client(): BelongsTo
