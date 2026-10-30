@@ -26,7 +26,7 @@ class InstallmentsSeeder extends Seeder
                     ->sole()->contract()->sole();
 
                 if (array_sum(array_column($group['schedule'], 'amount_minor')) !== (int) $contract->price_minor) {
-                    throw new RuntimeException("Invalid installment total for contract #{$contract->getKey()}.");
+                    throw new RuntimeException("#{$contract->getKey()} ხელშეკრულების შენატანების ჯამი მის ფასს არ ემთხვევა.");
                 }
 
                 foreach ($group['schedule'] as $installment) {

@@ -34,7 +34,7 @@ class DemoUsersSeeder extends Seeder
         foreach ($users as $data) {
             if (! is_string($data['password']) || $data['password'] === '') {
                 throw new RuntimeException(
-                    "Missing demo password for {$data['role']}"
+                    "დემო მომხმარებლის ({$data['role']}) პაროლი მითითებული არ არის."
                 );
             }
 
