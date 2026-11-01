@@ -51,7 +51,7 @@ it('searches by name or personal number without losing a zero search', function 
     $viewer = User::factory()->create();
     $viewer->assignRole('viewer');
     $target = Client::factory()->create([
-        'name' => 'გიორგი Smith',
+        'name' => 'გიორგი ბერიძე',
         'personal_number' => '01005098765',
     ]);
     Client::factory()->create(['name' => 'Other', 'personal_number' => '11111111111']);
@@ -62,7 +62,7 @@ it('searches by name or personal number without losing a zero search', function 
             ->where('clients.total', 1)
             ->has('clients.data', 1)
             ->where('clients.data.0.id', $target->id));
-})->with(['case insensitive' => ['  SMITH  '], 'Georgian' => ['გიორგი'], 'personal number' => ['0100509'], 'zero' => ['0']]);
+})->with(['case insensitive' => ['  ბერიძე  '], 'Georgian' => ['გიორგი'], 'personal number' => ['0100509'], 'zero' => ['0']]);
 
 it('paginates twenty clients and preserves validated search and sorting', function (): void {
     $viewer = User::factory()->create();
