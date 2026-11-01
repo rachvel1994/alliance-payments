@@ -10,6 +10,11 @@ use InvalidArgumentException;
 
 final class Money
 {
+    public static function formatMinor(int|string $value): string
+    {
+        return (string) BrickMoney::ofMinor($value, 'GEL')->getAmount();
+    }
+
     public static function toMinor(int|float|string $value): int
     {
         try {

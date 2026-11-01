@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 use App\Support\Money;
 
+it('formats integer tetri without float rounding', function (int|string $minor, string $formatted): void {
+    expect(Money::formatMinor($minor))->toBe($formatted);
+})->with([
+    'zero' => [0, '0.00'],
+    'one tetri' => [1, '0.01'],
+    'ordinary amount' => [942857, '9428.57'],
+    'largest PHP integer' => [PHP_INT_MAX, '92233720368547758.07'],
+    'large aggregate' => ['18446744073709551615', '184467440737095516.15'],
+]);
+
 it('converts GEL inputs to exact integer tetri', function (int|float|string $input, int $expected): void {
     expect(Money::toMinor($input))->toBe($expected);
 })->with([
