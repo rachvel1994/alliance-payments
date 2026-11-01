@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ImportRowStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,7 +22,9 @@ class PaymentImportRow extends Model
     protected function casts(): array
     {
         return [
-            'raw_data' => 'array'
+            'raw_data' => 'array',
+            'row_number' => 'integer',
+            'status' => ImportRowStatus::class,
         ];
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ImportStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,7 +27,12 @@ class PaymentImport extends Model
     protected function casts(): array
     {
         return [
-            'completed_at' => 'datetime'
+            'status' => ImportStatus::class,
+            'total_rows' => 'integer',
+            'imported_rows' => 'integer',
+            'duplicate_rows' => 'integer',
+            'rejected_rows' => 'integer',
+            'completed_at' => 'datetime',
         ];
     }
 
