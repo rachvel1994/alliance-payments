@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\PaymentImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReallocationController;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,10 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::post('/imports', [PaymentImportController::class, 'store'])
+        ->middleware(['can:payments.import', 'throttle:10,1'])
+        ->name('imports.store');
+
     Route::get('/clients', ClientController::class)
         ->middleware('can:clients.view')
         ->name('clients.index');
