@@ -8,13 +8,117 @@ use App\Enums\InstallmentStatus;
 use App\Models\Apartment;
 use App\Models\Contract;
 use App\Models\Installment;
+use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 final class WorkspaceQuery
 {
+    public function payments(array $filters): array
+    {
+        $query = Payment::query()->with('client');
+        if (isset($filters['client_id'])) {
+            $query->where('client_id', $filters['client_id']);
+        }
+        if (($term = $filters['q'] ?? '') !== '') {
+            $query->where(fn (Builder $query) => $query
+                ->whereLike('payer_name', '%'.$term.'%')
+                ->orWhereLike('personal_number', '%'.$term.'%')
+                ->orWhereLike('bank_reference', '%'.$term.'%')
+                ->orWhereHas('client', fn (Builder $client) => $client->whereLike('name', '%'.$term.'%')));
+        }
+
+        return $this->page($query, 'payments', $filters, fn (Payment $payment): array => [
+            'id' => $payment->id,
+            'date' => $payment->paid_at->toDateString(),
+            'amount_GEL' => Money::formatMinor($payment->amount_minor),
+            'personal_number' => $payment->personal_number,
+            'payer' => $payment->payer_name,
+            'client' => $payment->client?->name ?? '—',
+            'client_match' => $payment->client_id === null ? 'unmatched' : 'matched',
+            'bank_reference' => $payment->bank_reference,
+            '_url' => $this->href('/payments/'.$payment->id, ['as_of' => $this->date($filters)]),
+        ], ['id' => 'id', 'date' => 'paid_at', 'amount' => 'amount_minor'], 'paid_at');
+    }
+
+    public function payment(Payment $payment, array $filters): array
+    {
+        $date = $this->date($filters);
+        $query = $this->active($date)->where('payment_id', $payment->id)
+            ->with('installment.contract.apartment.project');
+        $allocatedMinor = (int) (clone $query)->sum('amount_minor');
+
+        return $this->page($query, 'payment', $filters, fn (PaymentAllocation $allocation): array => [
+            'id' => $allocation->id,
+            'contract' => $allocation->installment->contract_id,
+            'project' => $allocation->installment->contract->apartment->project->name,
+            'apartment' => $allocation->installment->contract->apartment->number,
+            'due_date' => $allocation->installment->due_date->toDateString(),
+            'allocated_GEL' => Money::formatMinor($allocation->amount_minor),
+            '_url' => $this->href('/contracts/'.$allocation->installment->contract_id, ['as_of' => $date]),
+        ], ['id' => 'id', 'amount' => 'amount_minor'], 'id', [
+            'bank_reference' => $payment->bank_reference,
+            'payer' => $payment->payer_name,
+            'amount_GEL' => Money::formatMinor($payment->amount_minor),
+            'allocated_GEL' => Money::formatMinor($allocatedMinor),
+            'unallocated_GEL' => Money::formatMinor($payment->amount_minor - $allocatedMinor),
+            'client_match' => $payment->client_id === null ? 'unmatched' : 'matched',
+            'included_as_of' => $payment->paid_at->toDateString() <= $date ? 'yes' : 'future',
+            'as_of' => $date,
+        ]);
+    }
+
+    public function overdue(array $filters): array
+    {
+        $date = $this->date($filters);
+        $paid = $this->active($date)->select('installment_id')
+            ->selectRaw('SUM(amount_minor) AS paid_minor')->groupBy('installment_id');
+        $remaining = 'installments.amount_minor - COALESCE(payment_coverage.paid_minor, 0)';
+        $query = Installment::query()
+            ->leftJoinSub($paid, 'payment_coverage', fn (JoinClause $join) => $join
+                ->on('installments.id', '=', 'payment_coverage.installment_id'))
+            ->select('installments.*')->selectRaw('COALESCE(payment_coverage.paid_minor, 0) AS paid_minor')
+            ->whereDate('installments.due_date', '<', $date)
+            ->whereRaw($remaining.' > 0')
+            ->with(['contract.client', 'contract.apartment.project']);
+        if (isset($filters['client_id'])) {
+            $query->whereHas('contract', fn (Builder $contract) => $contract->where('client_id', $filters['client_id']));
+        }
+        if (isset($filters['project_id'])) {
+            $query->whereHas('contract.apartment', fn (Builder $apartment) => $apartment->where('project_id', $filters['project_id']));
+        }
+        if (($term = $filters['q'] ?? '') !== '') {
+            $query->where(fn (Builder $query) => $query
+                ->whereHas('contract.client', fn (Builder $client) => $client
+                    ->whereLike('name', '%'.$term.'%')->orWhereLike('personal_number', '%'.$term.'%'))
+                ->orWhereHas('contract.apartment', fn (Builder $apartment) => $apartment
+                    ->whereLike('number', '%'.$term.'%')
+                    ->orWhereHas('project', fn (Builder $project) => $project->whereLike('name', '%'.$term.'%'))));
+        }
+
+        // დავალიანების ფილტრაცია, ჯამი და პაგინაცია ბაზაშივე სრულდება.
+        $totalMinor = (clone $query)->sum(DB::raw($remaining));
+
+        return $this->page($query, 'overdue', $filters, fn (Installment $installment): array => [
+            'id' => $installment->id,
+            'client' => $installment->contract->client->name,
+            'personal_number' => $installment->contract->client->personal_number,
+            'contract' => $installment->contract_id,
+            'project' => $installment->contract->apartment->project->name,
+            'apartment' => $installment->contract->apartment->number,
+            'due_date' => $installment->due_date->toDateString(),
+            'overdue_GEL' => Money::formatMinor($installment->amount_minor - (int) $installment->paid_minor),
+            '_url' => $this->href('/contracts/'.$installment->contract_id, ['as_of' => $date]),
+        ], ['id' => 'installments.id', 'date' => 'installments.due_date', 'amount' => DB::raw($remaining)], 'installments.due_date', [
+            'as_of' => $date,
+            'overdue_GEL' => Money::formatMinor((string) $totalMinor),
+        ]);
+    }
+
     public function contracts(array $filters): array
     {
         $query = Contract::query()->with(['client', 'apartment.project']);
