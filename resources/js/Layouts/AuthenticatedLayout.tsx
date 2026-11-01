@@ -9,7 +9,7 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+    const { user, permissions } = usePage().props.auth;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -33,6 +33,14 @@ export default function Authenticated({
                                 >
                                     Dashboard
                                 </NavLink>
+                                {permissions.includes('clients.view') && (
+                                    <NavLink
+                                        href={route('clients.index')}
+                                        active={route().current('clients.index')}
+                                    >
+                                        კლიენტები
+                                    </NavLink>
+                                )}
                             </div>
                         </div>
 
@@ -83,6 +91,10 @@ export default function Authenticated({
 
                         <div className="-me-2 flex items-center sm:hidden">
                             <button
+                                type="button"
+                                aria-label="ნავიგაციის მენიუ"
+                                aria-expanded={showingNavigationDropdown}
+                                aria-controls="mobile-navigation"
                                 onClick={() =>
                                     setShowingNavigationDropdown(
                                         (previousState) => !previousState,
@@ -125,6 +137,7 @@ export default function Authenticated({
                 </div>
 
                 <div
+                    id="mobile-navigation"
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
                         ' sm:hidden'
@@ -137,6 +150,14 @@ export default function Authenticated({
                         >
                             Dashboard
                         </ResponsiveNavLink>
+                        {permissions.includes('clients.view') && (
+                            <ResponsiveNavLink
+                                href={route('clients.index')}
+                                active={route().current('clients.index')}
+                            >
+                                კლიენტები
+                            </ResponsiveNavLink>
+                        )}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReallocationController;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,10 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/clients', ClientController::class)
+        ->middleware('can:clients.view')
+        ->name('clients.index');
+
     Route::post('/clients/{client}/reallocate', ReallocationController::class)
         ->whereNumber('client')
         ->middleware('can:payments.reallocate')
