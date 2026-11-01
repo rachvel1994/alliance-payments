@@ -81,7 +81,7 @@ final readonly class PaymentData
             'max' => ':attribute არ უნდა აღემატებოდეს :max სიმბოლოს.',
             'personal_number.regex' => 'პირადი ნომერი უნდა შედგებოდეს ზუსტად 11 ციფრისგან.',
             'amount.numeric' => 'თანხა უნდა იყოს რიცხვი.',
-            'amount.gt' => 'თანხა ნულზე მეტი უნდა იყოს.',
+            'amount.gt' => 'თანხა 0 მეტი უნდა იყოს.',
         ], [
             'paid_at' => 'გადახდის თარიღი',
             'personal_number' => 'პირადი ნომერი',
