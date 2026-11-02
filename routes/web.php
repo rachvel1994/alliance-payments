@@ -6,24 +6,32 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\PaymentImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReallocationController;
-use Illuminate\Foundation\Application;
+use App\Http\Controllers\WorkspaceController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::redirect('/', '/dashboard');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [WorkspaceController::class, 'overdue'])
+    ->middleware(['auth', 'verified', 'can:clients.view'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/overdue', [WorkspaceController::class, 'overdue'])
+        ->middleware('can:clients.view')->name('overdue.index');
+    Route::get('/apartments', [WorkspaceController::class, 'apartments'])
+        ->middleware('can:apartments.view')->name('apartments.index');
+    Route::get('/contracts', [WorkspaceController::class, 'contracts'])
+        ->middleware('can:contracts.view')->name('contracts.index');
+    Route::get('/contracts/{contract}', [WorkspaceController::class, 'contract'])
+        ->whereNumber('contract')->middleware('can:contracts.view')->name('contracts.show');
+    Route::get('/payments', [WorkspaceController::class, 'payments'])
+        ->middleware('can:payments.view')->name('payments.index');
+    Route::get('/payments/{payment}', [WorkspaceController::class, 'payment'])
+        ->whereNumber('payment')->middleware('can:payments.view')->name('payments.show');
+    Route::get('/imports', [WorkspaceController::class, 'imports'])
+        ->middleware('can:imports.view')->name('imports.index');
+    Route::get('/imports/{import}', [WorkspaceController::class, 'import'])
+        ->whereNumber('import')->middleware('can:imports.view')->name('imports.show');
+
     Route::post('/imports', [PaymentImportController::class, 'store'])
         ->middleware(['can:payments.import', 'throttle:10,1'])
         ->name('imports.store');

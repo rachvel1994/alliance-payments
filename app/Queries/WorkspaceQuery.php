@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Enums\ImportStatus;
 use App\Enums\InstallmentStatus;
 use App\Models\Apartment;
 use App\Models\Contract;
 use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\PaymentImport;
+use App\Models\PaymentImportRow;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
@@ -18,6 +21,58 @@ use Illuminate\Support\Facades\DB;
 
 final class WorkspaceQuery
 {
+    public function imports(array $filters): array
+    {
+        $query = PaymentImport::query()->with('user:id,name');
+        if (($term = $filters['q'] ?? '') !== '') {
+            $query->whereLike('filename', '%'.$term.'%');
+        }
+        if (isset($filters['import_status'])) {
+            $query->where('status', $filters['import_status']);
+        }
+        $filters['direction'] ??= 'desc';
+        $active = (clone $query)->whereIn('status', [ImportStatus::Queued, ImportStatus::Processing])->exists();
+
+        return $this->page($query, 'imports', $filters, fn (PaymentImport $import): array => [
+            'id' => $import->id,
+            'filename' => $import->filename,
+            'user' => $import->user?->name ?? '—',
+            'status' => $import->status->value,
+            'total' => $import->total_rows,
+            'imported' => $import->imported_rows,
+            'duplicates' => $import->duplicate_rows,
+            'rejected' => $import->rejected_rows,
+            '_url' => $this->href('/imports/'.$import->id),
+        ], ['id' => 'id', 'date' => 'created_at'], 'id', [], $active ? ImportStatus::Processing->value : null);
+    }
+
+    public function import(PaymentImport $import, array $filters): array
+    {
+        $import->refresh()->load('user:id,name');
+
+        return $this->page($import->rows()->getQuery(), 'import', $filters, function (PaymentImportRow $row): array {
+            $reference = $row->raw_data['bank_reference'] ?? null;
+
+            return [
+                'id' => $row->id,
+                'row' => $row->row_number,
+                'status' => $row->status->value,
+                'bank_reference' => is_scalar($reference) ? (string) $reference : null,
+                'message' => $row->message,
+                '_url' => $row->payment_id === null ? null : $this->href('/payments/'.$row->payment_id),
+            ];
+        }, ['id' => 'row_number'], 'row_number', [
+            'filename' => $import->filename,
+            'user' => $import->user?->name ?? '—',
+            'status' => $import->status->value,
+            'total' => $import->total_rows,
+            'imported' => $import->imported_rows,
+            'duplicates' => $import->duplicate_rows,
+            'rejected' => $import->rejected_rows,
+            'error' => $import->error_message,
+        ], $import->status->value);
+    }
+
     public function payments(array $filters): array
     {
         $query = Payment::query()->with('client');

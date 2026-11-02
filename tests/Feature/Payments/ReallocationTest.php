@@ -86,7 +86,7 @@ it('reallocates for an editor and shares Georgian feedback through Inertia', fun
 
     $this->get(route('dashboard'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Dashboard')
+            ->component('Workspace')
             ->where('flash.success', 'გადახდების განაწილება განახლდა.')
             ->where('auth.user.id', $editor->id));
 });

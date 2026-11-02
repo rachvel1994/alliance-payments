@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\ImportStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,7 @@ final class WorkspaceRequest extends FormRequest
         return [
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['free', 'sold'])],
+            'import_status' => ['nullable', Rule::in(ImportStatus::cases())],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
             'as_of' => ['nullable', 'date_format:Y-m-d'],
@@ -46,6 +48,7 @@ final class WorkspaceRequest extends FormRequest
         return [
             'q' => 'საძიებო ტექსტი', 'status' => 'სტატუსი', 'project_id' => 'პროექტი',
             'client_id' => 'კლიენტი', 'as_of' => 'საანგარიშო თარიღი',
+            'import_status' => 'იმპორტის სტატუსი',
             'sort' => 'დალაგების ველი', 'direction' => 'დალაგების მიმართულება', 'page' => 'გვერდის ნომერი',
         ];
     }

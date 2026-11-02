@@ -155,7 +155,13 @@ export default function Index({
                                                 <th scope="row" className="px-6 py-4 font-medium text-gray-900">{client.name}</th>
                                                 <td className="whitespace-nowrap px-6 py-4 text-gray-700">{client.personal_number}</td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-gray-700">{client.phone ?? '—'}</td>
-                                                <td className="px-6 py-4 text-gray-700">{client.contracts_count}</td>
+                                                <td className="px-6 py-4 text-gray-700">
+                                                    {auth.permissions.includes('contracts.view') ? (
+                                                        <Link href={route('contracts.index', { client_id: client.id })} className="underline focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                            {client.contracts_count}
+                                                        </Link>
+                                                    ) : client.contracts_count}
+                                                </td>
                                                 {canReallocate && (
                                                     <td className="px-6 py-4">
                                                         <PrimaryButton
