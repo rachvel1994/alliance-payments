@@ -92,6 +92,15 @@ export default function Workspace({ section, filters, rows, links, total, summar
                         <Link key={name} href={route(name)} className="underline focus:outline-none focus:ring-2 focus:ring-indigo-500">{label}</Link>
                     ))}
                 </nav>
+                {['contracts', 'apartments'].includes(section) && auth.permissions.includes('contracts.create') && (
+                    <Link href={route('contracts.create')} className="self-start rounded-md bg-gray-800 px-4 py-3 text-sm text-white">ახალი ხელშეკრულება</Link>
+                )}
+                {section === 'apartments' && auth.permissions.includes('apartments.create') && (
+                    <Link href={route('apartments.create')} className="self-start rounded-md bg-gray-800 px-4 py-3 text-sm text-white">ახალი ბინა</Link>
+                )}
+                {section === 'apartments' && auth.permissions.includes('projects.create') && (
+                    <Link href={route('projects.create')} className="self-start rounded-md bg-gray-800 px-4 py-3 text-sm text-white">ახალი პროექტი</Link>
+                )}
                 {flash.success && <p role="status" className="rounded-md bg-green-50 p-4 text-green-800">{flash.success}</p>}
                 {flash.error && <p role="alert" className="rounded-md bg-red-50 p-4 text-red-800">{flash.error}</p>}
                 {processing && <ImportProgress />}
@@ -152,6 +161,7 @@ export default function Workspace({ section, filters, rows, links, total, summar
                                 {columns.map((key) => <td key={key} className="px-6 py-4 align-top">{cell(key, row[key])}</td>)}
                                 <td className="space-y-2 px-6 py-4">
                                     {typeof row._url === 'string' && <Link href={row._url} className="block underline">ნახვა</Link>}
+                                    {typeof row._edit_url === 'string' && auth.permissions.includes('apartments.update') && <Link href={row._edit_url} className="block underline">რედაქტირება</Link>}
                                     {Array.isArray(row._links) && row._links.map((link) => <Link key={link.url} href={link.url} className="block underline">{link.label}</Link>)}
                                 </td>
                             </tr>)}</tbody>

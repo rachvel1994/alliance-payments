@@ -18,9 +18,15 @@ class RolesAndPermissionsSeeder extends Seeder
         $registrar->forgetCachedPermissions();
 
         $permissions = [
+            'projects.create',
             'clients.view',
+            'clients.create',
+            'clients.update',
             'apartments.view',
+            'apartments.create',
+            'apartments.update',
             'contracts.view',
+            'contracts.create',
             'payments.view',
             'imports.view',
             'payments.import',

@@ -66,6 +66,9 @@ export default function Index({
 
             <div className="py-8">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                    {auth.permissions.includes('clients.create') && (
+                        <Link href={route('clients.create')} className="self-start rounded-md bg-gray-800 px-4 py-3 text-sm text-white">ახალი კლიენტი</Link>
+                    )}
                     {flash.success && (
                         <div role="status" className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
                             {flash.success}
@@ -146,6 +149,7 @@ export default function Index({
                                             <th scope="col" className="px-6 py-3">პირადი ნომერი</th>
                                             <th scope="col" className="px-6 py-3">ტელეფონი</th>
                                             <th scope="col" className="px-6 py-3">ხელშეკრულებები</th>
+                                            {auth.permissions.includes('clients.update') && <th scope="col" className="px-6 py-3">რედაქტირება</th>}
                                             {canReallocate && <th scope="col" className="px-6 py-3">მოქმედება</th>}
                                         </tr>
                                     </thead>
@@ -162,6 +166,9 @@ export default function Index({
                                                         </Link>
                                                     ) : client.contracts_count}
                                                 </td>
+                                                {auth.permissions.includes('clients.update') && (
+                                                    <td className="px-6 py-4"><Link href={route('clients.edit', client.id)} className="underline">რედაქტირება</Link></td>
+                                                )}
                                                 {canReallocate && (
                                                     <td className="px-6 py-4">
                                                         <PrimaryButton

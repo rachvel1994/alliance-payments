@@ -253,7 +253,7 @@ final class WorkspaceQuery
 
     public function apartments(array $filters): array
     {
-        $query = Apartment::query()->with('project');
+        $query = Apartment::query()->with('project')->withExists('contract');
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -276,6 +276,8 @@ final class WorkspaceQuery
             'area' => $apartment->area,
             'price_GEL' => Money::formatMinor($apartment->price_minor),
             'status' => $apartment->status,
+            '_edit_url' => $apartment->status === 'free' && ! $apartment->contract_exists
+                ? $this->href('/apartments/'.$apartment->id.'/edit') : null,
         ], ['id' => 'id', 'price' => 'price_minor'], 'id');
     }
 
