@@ -6,19 +6,32 @@ use App\Http\Controllers\ApartmentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientManagementController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PaymentImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReallocationController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\WorkspaceController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 
-Route::get('/dashboard', [WorkspaceController::class, 'overdue'])
-    ->middleware(['auth', 'verified', 'can:clients.view'])->name('dashboard');
+Route::get('/dashboard', OverviewController::class)
+    ->middleware(['auth', 'verified', 'can:overview.view'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::prefix('admin/users')->name('admin.users.')->middleware('can:manage,'.User::class)->group(function () {
+        Route::get('/', [UserManagementController::class, 'index'])->name('index');
+        Route::get('/create', [UserManagementController::class, 'create'])->name('create');
+        Route::post('/', [UserManagementController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [UserManagementController::class, 'edit'])->whereNumber('user')->name('edit');
+        Route::patch('/{user}', [UserManagementController::class, 'update'])->whereNumber('user')->name('update');
+        Route::delete('/{user}', [UserManagementController::class, 'destroy'])->whereNumber('user')->name('destroy');
+    });
+    Route::get('/overview', OverviewController::class)
+        ->middleware('can:overview.view')->name('overview.index');
     Route::get('/projects/create', [ProjectController::class, 'create'])
         ->middleware('can:projects.create')->name('projects.create');
     Route::post('/projects', [ProjectController::class, 'store'])
@@ -76,7 +89,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';

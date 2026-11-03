@@ -74,7 +74,8 @@ it('exposes row outcomes and payment links without raw payloads or file hashes',
 
     $result = app(WorkspaceQuery::class)->import($import, []);
 
-    expect($result['rows'][0]['bank_reference'])->toBe('0000123')
+    expect($result['rows'][0]['bank_reference']['label'])->toBe('0000123')
+        ->and($result['rows'][0]['bank_reference']['url'])->toEndWith('/payments/'.$payment->id)
         ->and($result['rows'][0]['_url'])->toEndWith('/payments/'.$payment->id)
         ->and($result['rows'][0])->not->toHaveKey('raw_data')
         ->and(json_encode($result))->not->toContain('private-raw-content', str_repeat('f', 64));

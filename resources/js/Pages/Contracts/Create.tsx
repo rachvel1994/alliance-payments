@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SelectInput from '@/Components/SelectInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -7,10 +8,10 @@ import { FormEvent } from 'react';
 
 type Options = {
     clients: { id: number; name: string; personal_number: string }[];
-    apartments: { id: number; label: string; price: string }[];
+    apartments: { id: number; label: string; price: string; description: string }[];
     today: string;
 };
-const control = 'mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500';
+const control = 'mt-1 block w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand';
 
 export default function Create({ clients, apartments, today }: PageProps<Options>) {
     const form = useForm({
@@ -29,21 +30,16 @@ export default function Create({ clients, apartments, today }: PageProps<Options
             <Link href={route('contracts.index')} className="underline">ხელშეკრულებებში დაბრუნება</Link>
             {(!clients.length || !apartments.length) && <p role="status" className="rounded-md bg-amber-50 p-4 text-amber-900">შექმნისთვის საჭიროა კლიენტი და თავისუფალი ბინა.</p>}
             <form onSubmit={submit} className="space-y-5 rounded-lg bg-white p-6 shadow-sm">
-                <label className="block text-sm">კლიენტი
-                    <select required className={control} value={form.data.client_id} onChange={(e) => form.setData('client_id', e.target.value)}>
-                        <option value="">აირჩიე კლიენტი</option>
-                        {clients.map((client) => <option key={client.id} value={client.id}>{client.name} — {client.personal_number}</option>)}
-                    </select><InputError message={form.errors.client_id} />
-                </label>
-                <label className="block text-sm">თავისუფალი ბინა
-                    <select required className={control} value={form.data.apartment_id} onChange={(e) => {
-                        const apartment = apartments.find((item) => String(item.id) === e.target.value);
-                        form.setData({ ...form.data, apartment_id: e.target.value, price: apartment?.price ?? '' });
-                    }}>
-                        <option value="">აირჩიე ბინა</option>
-                        {apartments.map((apartment) => <option key={apartment.id} value={apartment.id}>{apartment.label} — {apartment.price} ₾</option>)}
-                    </select><InputError message={form.errors.apartment_id} />
-                </label>
+                <SelectInput label="კლიენტი" searchable required placeholder="მოძებნე სახელი ან პირადი ნომერი"
+                    value={form.data.client_id} onChange={(value) => form.setData('client_id', value)} error={form.errors.client_id}
+                    options={clients.map((client) => ({ value: String(client.id), label: client.name, description: client.personal_number }))} />
+                <SelectInput label="თავისუფალი ბინა" searchable required placeholder="მოძებნე პროექტი ან ბინა"
+                    value={form.data.apartment_id} error={form.errors.apartment_id}
+                    options={apartments.map((apartment) => ({ value: String(apartment.id), label: apartment.label, description: `${apartment.description} · ${apartment.price} ₾` }))}
+                    onChange={(value) => {
+                        const apartment = apartments.find((item) => String(item.id) === value);
+                        form.setData({ ...form.data, apartment_id: value, price: apartment?.price ?? '' });
+                    }} />
                 <label className="block text-sm">ხელშეკრულების ფასი (₾)
                     <input required inputMode="decimal" className={control} value={form.data.price} onChange={(e) => form.setData('price', e.target.value)} />
                     <InputError message={form.errors.price} />

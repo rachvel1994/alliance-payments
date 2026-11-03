@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SelectInput from '@/Components/SelectInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -7,7 +8,7 @@ import { FormEvent } from 'react';
 
 type Apartment = { id: number; project_id: number; number: string; floor: number; area: string; price: string; status: string; contract_exists: boolean };
 type Project = { id: number; name: string; city: string };
-const control = 'mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500';
+const control = 'mt-1 block w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand';
 
 export default function Form({ apartment, projects, selectedProjectId, auth, flash }: PageProps<{ apartment: Apartment | null; projects: Project[]; selectedProjectId: number | null }>) {
     const title = apartment ? 'ბინის რედაქტირება' : 'ახალი ბინა';
@@ -33,12 +34,9 @@ export default function Form({ apartment, projects, selectedProjectId, auth, fla
             {!projects.length && <p role="status">ბინის დამატებისთვის საჭიროა პროექტი.</p>}
             <form onSubmit={submit} className="rounded-lg bg-white p-6 shadow-sm">
                 <fieldset disabled={!editable || form.processing || !projects.length} className="space-y-5">
-                    <label className="block text-sm">პროექტი
-                        <select required className={control} value={form.data.project_id} onChange={(e) => form.setData('project_id', e.target.value)}>
-                            <option value="">აირჩიე პროექტი</option>
-                            {projects.map((project) => <option key={project.id} value={project.id}>{project.name} — {project.city}</option>)}
-                        </select><InputError message={form.errors.project_id} />
-                    </label>
+                    <SelectInput label="პროექტი" searchable required disabled={!editable || form.processing || !projects.length} placeholder="მოძებნე პროექტი ან ქალაქი"
+                        value={form.data.project_id} onChange={(value) => form.setData('project_id', value)} error={form.errors.project_id}
+                        options={projects.map((project) => ({ value: String(project.id), label: project.name, description: project.city }))} />
                     {([['number', 'ბინის ნომერი'], ['floor', 'სართული'], ['area', 'ფართი (მ²)'], ['price', 'ბინის ფასი (₾)']] as const).map(([key, label]) => <label key={key} className="block text-sm">{label}
                         <input required className={control} maxLength={key === 'number' ? 255 : undefined}
                             inputMode={key === 'floor' ? 'numeric' : key === 'number' ? 'text' : 'decimal'}

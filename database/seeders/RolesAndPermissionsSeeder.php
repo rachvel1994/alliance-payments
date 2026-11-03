@@ -17,21 +17,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $registrar->forgetCachedPermissions();
 
-        $permissions = [
-            'projects.create',
-            'clients.view',
-            'clients.create',
-            'clients.update',
-            'apartments.view',
-            'apartments.create',
-            'apartments.update',
-            'contracts.view',
-            'contracts.create',
-            'payments.view',
-            'imports.view',
-            'payments.import',
-            'payments.reallocate',
-        ];
+        $permissions = array_keys(config('access.permissions'));
 
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission, 'web');
@@ -41,11 +27,14 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $editor = Role::findOrCreate('editor', 'web');
         $viewer = Role::findOrCreate('viewer', 'web');
+        $admin = Role::findOrCreate('admin', 'web');
+
+        $admin->syncPermissions(Permission::query()->where('guard_name', 'web')->whereIn('name', $permissions)->get());
 
         $editor->syncPermissions(
             Permission::query()
                 ->where('guard_name', 'web')
-                ->whereIn('name', $permissions)
+                ->whereIn('name', array_diff($permissions, ['users.manage']))
                 ->get()
         );
 
@@ -53,6 +42,7 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::query()
                 ->where('guard_name', 'web')
                 ->whereIn('name', [
+                    'overview.view',
                     'clients.view',
                     'apartments.view',
                     'contracts.view',

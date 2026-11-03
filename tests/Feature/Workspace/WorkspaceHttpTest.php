@@ -59,7 +59,7 @@ function workspaceHttpPaths(): array
     [$contract, $payment, $import] = workspaceHttpFixture();
 
     return [
-        '/dashboard' => 'overdue', '/overdue' => 'overdue', '/apartments' => 'apartments',
+        '/overdue' => 'overdue', '/apartments' => 'apartments',
         '/contracts' => 'contracts', '/contracts/'.$contract->id => 'contract',
         '/payments' => 'payments', '/payments/'.$payment->id => 'payment',
         '/imports' => 'imports', '/imports/'.$import->id => 'import',

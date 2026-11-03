@@ -1,21 +1,18 @@
-import {
-    Dialog,
-    DialogPanel,
-    Transition,
-    TransitionChild,
-} from '@headlessui/react';
-import { PropsWithChildren } from 'react';
+import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
+import { PropsWithChildren, RefObject } from 'react';
 
 export default function Modal({
     children,
     show = false,
     maxWidth = '2xl',
     closeable = true,
+    initialFocus,
     onClose = () => {},
 }: PropsWithChildren<{
     show: boolean;
     maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     closeable?: boolean;
+    initialFocus?: RefObject<HTMLElement>;
     onClose: CallableFunction;
 }>) {
     const close = () => {
@@ -39,6 +36,7 @@ export default function Modal({
                 id="modal"
                 className="fixed inset-0 z-50 flex transform items-center overflow-y-auto px-4 py-6 transition-all sm:px-0"
                 onClose={close}
+                initialFocus={initialFocus}
             >
                 <TransitionChild
                     enter="ease-out duration-300"
@@ -60,7 +58,7 @@ export default function Modal({
                     leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                 >
                     <DialogPanel
-                        className={`mb-6 transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full ${maxWidthClass}`}
+                        className={`relative mx-auto my-auto max-h-[calc(100dvh-3rem)] w-full transform overflow-y-auto rounded-xl bg-white shadow-xl transition-all motion-reduce:transition-none ${maxWidthClass}`}
                     >
                         {children}
                     </DialogPanel>

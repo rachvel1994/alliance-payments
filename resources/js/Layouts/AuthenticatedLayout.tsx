@@ -1,200 +1,94 @@
+import AppNavigation, { navigationItems } from '@/Components/AppNavigation';
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
-import NavLink from '@/Components/NavLink';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import Icon from '@/Components/Icon';
+import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 
-export default function Authenticated({
-    header,
-    children,
-}: PropsWithChildren<{ header?: ReactNode }>) {
+export default function Authenticated({ header, children }: PropsWithChildren<{ header?: ReactNode }>) {
     const { user, permissions } = usePage().props.auth;
-
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
+    const links = navigationItems.filter((item) => permissions.includes(item.permission));
+    const hasAdministration = permissions.includes('users.manage');
+    const currentRoute = route().current();
+    const home = links[0]?.name ?? 'profile.edit';
+    const initials = user.name.trim().split(/\s+/u).slice(0, 2).map((name) => Array.from(name)[0]).join('').toUpperCase();
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
-                                </Link>
-                            </div>
-
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
-                                >
-                                    Dashboard
-                                </NavLink>
-                                {permissions.includes('clients.view') && (
-                                    <NavLink
-                                        href={route('clients.index')}
-                                        active={route().current('clients.index')}
-                                    >
-                                        კლიენტები
-                                    </NavLink>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                {user.name}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
-                                            href={route('profile.edit')}
-                                        >
-                                            Profile
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <div className="-me-2 flex items-center sm:hidden">
-                            <button
-                                type="button"
-                                aria-label="ნავიგაციის მენიუ"
-                                aria-expanded={showingNavigationDropdown}
-                                aria-controls="mobile-navigation"
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                            >
-                                <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    id="mobile-navigation"
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
+        <div className="min-h-screen bg-surface text-ink">
+            <Disclosure as="header" lang="ka" className="sticky top-0 z-40 border-b border-brand-border/60 bg-white">
+                {({ open, close }) => <div onKeyDown={(event) => {
+                    if (event.key === 'Escape' && open) {
+                        event.stopPropagation();
+                        close();
                     }
-                >
-                    <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-                        {permissions.includes('clients.view') && (
-                            <ResponsiveNavLink
-                                href={route('clients.index')}
-                                active={route().current('clients.index')}
-                            >
-                                კლიენტები
-                            </ResponsiveNavLink>
-                        )}
-                    </div>
+                }}>
+                    <a href="#main-content" onClick={() => close()}
+                        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-3 focus:text-white focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
+                        შიგთავსზე გადასვლა
+                    </a>
+                    <div className="mx-auto flex h-24 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+                        <Link href={route(home)} aria-label="Alliance Group — მთავარი გვერდი"
+                            className="flex min-h-11 shrink-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-4">
+                            <ApplicationLogo alt="" aria-hidden="true" className="h-20 w-auto" />
+                            <span className="hidden border-l border-brand-border pl-3 sm:block">
+                                <span className="block text-sm font-semibold text-ink">გადახდების მართვა</span>
+                                <span className="mt-1 block text-xs text-gray-500">სამუშაო სივრცე</span>
+                            </span>
+                        </Link>
 
-                    <div className="border-t border-gray-200 pb-1 pt-4">
-                        <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-gray-500">
-                                {user.email}
-                            </div>
+                        <nav aria-label="მთავარი მენიუ" className={`hidden items-center gap-1 ${hasAdministration ? 'xl:flex' : 'lg:flex'}`}>
+                            <AppNavigation items={links} currentRoute={currentRoute} />
+                        </nav>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                            {links.length > 0 && <DisclosureButton
+                                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-brand-border/60 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${hasAdministration ? 'xl:hidden' : 'lg:hidden'}`}
+                                aria-label={open ? 'მენიუს დახურვა' : 'მენიუს გახსნა'}>
+                                <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+                                    <path d={open ? 'M6 6l12 12M6 18L18 6' : 'M4 6h16M4 12h16M4 18h16'} />
+                                </svg>
+                                მენიუ
+                            </DisclosureButton>}
+
+                            <Menu as="div" className="relative lg:ml-2 lg:border-l lg:border-brand-border/60 lg:pl-4">
+                                <MenuButton aria-label="მომხმარებლის მენიუ"
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-lg p-1.5 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
+                                    <span aria-hidden="true" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">{initials}</span>
+                                    <span className="hidden max-w-28 truncate text-left font-medium md:block">{user.name}</span>
+                                    <svg aria-hidden="true" className="hidden h-4 w-4 text-gray-500 md:block" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="m6 8 4 4 4-4" />
+                                    </svg>
+                                </MenuButton>
+                                <MenuItems className="absolute right-0 z-50 mt-3 w-64 rounded-xl border border-brand-border/60 bg-white p-1.5 shadow-lg focus:outline-none">
+                                    <div className="mb-1 border-b border-gray-100 px-3 py-3">
+                                        <p className="break-words text-sm font-semibold text-gray-900">{user.name}</p>
+                                        <p className="mt-1 break-words text-xs text-gray-500">{user.email}</p>
+                                    </div>
+                                    <MenuItem>
+                                        <Link href={route('profile.edit')} aria-current={currentRoute === 'profile.edit' ? 'page' : undefined}
+                                            className="flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-ink"><Icon name="profile" />პროფილი</Link>
+                                    </MenuItem>
+                                    <MenuItem>
+                                        <Link href={route('logout')} method="post" as="button"
+                                            className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm text-red-700 data-[focus]:bg-red-50"><Icon name="logout" />გასვლა</Link>
+                                    </MenuItem>
+                                </MenuItems>
+                            </Menu>
                         </div>
-
-                        <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
                     </div>
-                </div>
-            </nav>
 
-            {header && (
-                <header className="bg-white shadow">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
+                    <DisclosurePanel className={`max-h-[calc(100dvh-6rem)] overflow-y-auto border-t border-gray-100 ${hasAdministration ? 'xl:hidden' : 'lg:hidden'}`}>
+                        <nav aria-label="მობილური მენიუ" className="mx-auto grid max-w-7xl gap-1 px-4 py-3 sm:px-6 lg:px-8">
+                            <AppNavigation items={links} currentRoute={currentRoute} mobile onNavigate={() => close()} />
+                        </nav>
+                    </DisclosurePanel>
+                </div>}
+            </Disclosure>
 
-            <main>{children}</main>
+            <main id="main-content" tabIndex={-1} className="pb-8 focus:outline-none">
+                {header && <div className="mx-auto max-w-7xl px-4 pt-7 sm:px-6 lg:px-8">{header}</div>}
+                {children}
+            </main>
         </div>
     );
 }

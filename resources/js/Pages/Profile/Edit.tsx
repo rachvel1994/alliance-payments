@@ -1,41 +1,47 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
-import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
 export default function Edit({
     mustVerifyEmail,
+    emailVerified,
     status,
-}: PageProps<{ mustVerifyEmail: boolean; status?: string }>) {
+    roles,
+}: PageProps<{
+    mustVerifyEmail: boolean;
+    emailVerified: boolean;
+    status?: string;
+    roles: string[];
+}>) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Profile
-                </h2>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h1 className="text-2xl font-semibold text-ink">პროფილი</h1>
+                    <div aria-label="მინიჭებული როლი" className="flex flex-wrap gap-2">
+                        {(roles.length ? roles : ['როლი არ არის მინიჭებული']).map((role) => (
+                            <span
+                                key={role}
+                                className="rounded-full border border-brand-border/70 bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand"
+                            >
+                                {role}
+                            </span>
+                        ))}
+                    </div>
+                </div>
             }
         >
-            <Head title="Profile" />
-
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-xl"
-                        />
-                    </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+            <Head title="პროფილი" />
+            <div lang="ka" className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <div className="grid overflow-hidden rounded-2xl border border-gray-200 bg-white lg:grid-cols-2">
+                    <UpdateProfileInformationForm
+                        mustVerifyEmail={mustVerifyEmail}
+                        emailVerified={emailVerified}
+                        status={status}
+                    />
+                    <UpdatePasswordForm />
                 </div>
             </div>
         </AuthenticatedLayout>

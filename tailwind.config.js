@@ -12,6 +12,16 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                brand: {
+                    DEFAULT: '#940028',
+                    hover: '#780020',
+                    soft: '#faf1f4',
+                    border: '#e8cbd3',
+                },
+                ink: '#1a1a1a',
+                surface: '#faf9f9',
+            },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },

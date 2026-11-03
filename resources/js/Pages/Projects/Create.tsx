@@ -20,7 +20,7 @@ export default function Create({ auth, flash }: PageProps) {
             {flash.success && <p role="status" className="rounded-md bg-green-50 p-4 text-green-800">{flash.success}</p>}
             <form onSubmit={submit} className="space-y-5 rounded-lg bg-white p-6 shadow-sm">
                 {([['name', 'პროექტის სახელი'], ['city', 'ქალაქი']] as const).map(([key, label]) => <label key={key} className="block text-sm">{label}
-                    <input required maxLength={255} className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    <input required maxLength={255} className="mt-1 block w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand"
                         value={form.data[key]} onChange={(e) => form.setData(key, e.target.value)} />
                     <InputError message={form.errors[key]} />
                 </label>)}

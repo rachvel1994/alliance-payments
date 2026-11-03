@@ -7,20 +7,23 @@ namespace App\Queries;
 use App\Enums\ImportStatus;
 use App\Enums\InstallmentStatus;
 use App\Models\Apartment;
+use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentImport;
 use App\Models\PaymentImportRow;
+use App\Models\Project;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 final class WorkspaceQuery
 {
+    public function __construct(private readonly PaymentCoverage $coverage) {}
+
     public function imports(array $filters): array
     {
         $query = PaymentImport::query()->with('user:id,name');
@@ -35,7 +38,7 @@ final class WorkspaceQuery
 
         return $this->page($query, 'imports', $filters, fn (PaymentImport $import): array => [
             'id' => $import->id,
-            'filename' => $import->filename,
+            'filename' => $this->link($import->filename, '/imports/'.$import->id, 'imports.view'),
             'user' => $import->user?->name ?? '—',
             'status' => $import->status->value,
             'total' => $import->total_rows,
@@ -57,7 +60,9 @@ final class WorkspaceQuery
                 'id' => $row->id,
                 'row' => $row->row_number,
                 'status' => $row->status->value,
-                'bank_reference' => is_scalar($reference) ? (string) $reference : null,
+                'bank_reference' => $row->payment_id !== null && is_scalar($reference)
+                    ? $this->link((string) $reference, '/payments/'.$row->payment_id, 'payments.view')
+                    : (is_scalar($reference) ? (string) $reference : null),
                 'message' => $row->message,
                 '_url' => $row->payment_id === null ? null : $this->href('/payments/'.$row->payment_id),
             ];
@@ -76,6 +81,9 @@ final class WorkspaceQuery
     public function payments(array $filters): array
     {
         $query = Payment::query()->with('client');
+        if (isset($filters['client_match'])) {
+            $filters['client_match'] === 'unmatched' ? $query->whereNull('client_id') : $query->whereNotNull('client_id');
+        }
         if (isset($filters['client_id'])) {
             $query->where('client_id', $filters['client_id']);
         }
@@ -93,9 +101,9 @@ final class WorkspaceQuery
             'amount_GEL' => Money::formatMinor($payment->amount_minor),
             'personal_number' => $payment->personal_number,
             'payer' => $payment->payer_name,
-            'client' => $payment->client?->name ?? '—',
+            'client' => $payment->client === null ? '—' : $this->clientLink($payment->client),
             'client_match' => $payment->client_id === null ? 'unmatched' : 'matched',
-            'bank_reference' => $payment->bank_reference,
+            'bank_reference' => $this->link($payment->bank_reference, '/payments/'.$payment->id, 'payments.view', query: ['as_of' => $this->date($filters)]),
             '_url' => $this->href('/payments/'.$payment->id, ['as_of' => $this->date($filters)]),
         ], ['id' => 'id', 'date' => 'paid_at', 'amount' => 'amount_minor'], 'paid_at');
     }
@@ -103,14 +111,15 @@ final class WorkspaceQuery
     public function payment(Payment $payment, array $filters): array
     {
         $date = $this->date($filters);
+        $payment->load('client');
         $query = $this->active($date)->where('payment_id', $payment->id)
             ->with('installment.contract.apartment.project');
         $allocatedMinor = (int) (clone $query)->sum('amount_minor');
 
         return $this->page($query, 'payment', $filters, fn (PaymentAllocation $allocation): array => [
             'id' => $allocation->id,
-            'contract' => $allocation->installment->contract_id,
-            'project' => $allocation->installment->contract->apartment->project->name,
+            'contract' => $this->contractLink($allocation->installment->contract, $date),
+            'project' => $this->projectLink($allocation->installment->contract->apartment->project),
             'apartment' => $allocation->installment->contract->apartment->number,
             'due_date' => $allocation->installment->due_date->toDateString(),
             'allocated_GEL' => Money::formatMinor($allocation->amount_minor),
@@ -118,6 +127,10 @@ final class WorkspaceQuery
         ], ['id' => 'id', 'amount' => 'amount_minor'], 'id', [
             'bank_reference' => $payment->bank_reference,
             'payer' => $payment->payer_name,
+            'personal_number' => $payment->personal_number,
+            'client' => $payment->client === null ? '—' : $this->clientLink($payment->client),
+            'date' => $payment->paid_at->toDateString(),
+            'purpose' => $payment->purpose,
             'amount_GEL' => Money::formatMinor($payment->amount_minor),
             'allocated_GEL' => Money::formatMinor($allocatedMinor),
             'unallocated_GEL' => Money::formatMinor($payment->amount_minor - $allocatedMinor),
@@ -130,13 +143,8 @@ final class WorkspaceQuery
     public function overdue(array $filters): array
     {
         $date = $this->date($filters);
-        $paid = $this->active($date)->select('installment_id')
-            ->selectRaw('SUM(amount_minor) AS paid_minor')->groupBy('installment_id');
         $remaining = 'installments.amount_minor - COALESCE(payment_coverage.paid_minor, 0)';
-        $query = Installment::query()
-            ->leftJoinSub($paid, 'payment_coverage', fn (JoinClause $join) => $join
-                ->on('installments.id', '=', 'payment_coverage.installment_id'))
-            ->select('installments.*')->selectRaw('COALESCE(payment_coverage.paid_minor, 0) AS paid_minor')
+        $query = $this->coverage->installments($date)
             ->whereDate('installments.due_date', '<', $date)
             ->whereRaw($remaining.' > 0')
             ->with(['contract.client', 'contract.apartment.project']);
@@ -160,10 +168,10 @@ final class WorkspaceQuery
 
         return $this->page($query, 'overdue', $filters, fn (Installment $installment): array => [
             'id' => $installment->id,
-            'client' => $installment->contract->client->name,
+            'client' => $this->clientLink($installment->contract->client),
             'personal_number' => $installment->contract->client->personal_number,
-            'contract' => $installment->contract_id,
-            'project' => $installment->contract->apartment->project->name,
+            'contract' => $this->contractLink($installment->contract, $date),
+            'project' => $this->projectLink($installment->contract->apartment->project),
             'apartment' => $installment->contract->apartment->number,
             'due_date' => $installment->due_date->toDateString(),
             'overdue_GEL' => Money::formatMinor($installment->amount_minor - (int) $installment->paid_minor),
@@ -194,9 +202,10 @@ final class WorkspaceQuery
 
         return $this->page($query, 'contracts', $filters, fn (Contract $contract): array => [
             'id' => $contract->id,
-            'client' => $contract->client->name,
+            'contract' => $this->contractLink($contract, $this->date($filters)),
+            'client' => $this->clientLink($contract->client),
             'personal_number' => $contract->client->personal_number,
-            'project' => $contract->apartment->project->name,
+            'project' => $this->projectLink($contract->apartment->project),
             'apartment' => $contract->apartment->number,
             'date' => $contract->contract_date->toDateString(),
             'price_GEL' => Money::formatMinor($contract->price_minor),
@@ -237,13 +246,20 @@ final class WorkspaceQuery
                     '_links' => $paid->map(fn (PaymentAllocation $allocation): array => [
                         'label' => $allocation->payment->bank_reference,
                         'url' => $this->href('/payments/'.$allocation->payment_id, ['as_of' => $date]),
+                        'description' => Money::formatMinor($allocation->amount_minor).' ₾ · '.$allocation->payment->paid_at->toDateString(),
+                        'permission' => 'payments.view',
                     ])->all(),
                 ];
             }, ['id' => 'id', 'date' => 'due_date', 'amount' => 'amount_minor'], 'due_date', [
-                'contract' => $contract->id,
-                'client' => $contract->client->name,
-                'project' => $contract->apartment->project->name,
-                'apartment' => $contract->apartment->number,
+                'contract' => $this->contractLink($contract, $date),
+                'client' => $this->clientLink($contract->client),
+                'personal_number' => $contract->client->personal_number,
+                'phone' => $contract->client->phone,
+                'date' => $contract->contract_date->toDateString(),
+                'project' => $this->projectLink($contract->apartment->project),
+                'apartment' => $this->link('ბინა '.$contract->apartment->number, '/apartments', 'apartments.view',
+                    $contract->apartment->area.' მ² · სართული '.$contract->apartment->floor,
+                    ['project_id' => $contract->apartment->project_id, 'q' => $contract->apartment->number]),
                 'price_GEL' => Money::formatMinor($contract->price_minor),
                 'paid_GEL' => Money::formatMinor($paidTotal),
                 'remaining_GEL' => Money::formatMinor($contract->price_minor - $paidTotal),
@@ -253,7 +269,7 @@ final class WorkspaceQuery
 
     public function apartments(array $filters): array
     {
-        $query = Apartment::query()->with('project')->withExists('contract');
+        $query = Apartment::query()->with(['project', 'contract.apartment.project'])->withExists('contract');
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -269,13 +285,14 @@ final class WorkspaceQuery
 
         return $this->page($query, 'apartments', $filters, fn (Apartment $apartment): array => [
             'id' => $apartment->id,
-            'project' => $apartment->project->name,
+            'project' => $this->projectLink($apartment->project),
             'city' => $apartment->project->city,
             'number' => $apartment->number,
             'floor' => $apartment->floor,
             'area' => $apartment->area,
             'price_GEL' => Money::formatMinor($apartment->price_minor),
             'status' => $apartment->status,
+            'contract' => $apartment->contract === null ? null : $this->contractLink($apartment->contract, $this->date($filters)),
             '_edit_url' => $apartment->status === 'free' && ! $apartment->contract_exists
                 ? $this->href('/apartments/'.$apartment->id.'/edit') : null,
         ], ['id' => 'id', 'price' => 'price_minor'], 'id');
@@ -288,10 +305,7 @@ final class WorkspaceQuery
 
     private function active(string $date): Builder
     {
-        return PaymentAllocation::query()
-            ->whereHas('allocationRun', fn (Builder $run) => $run->whereHas('client', fn (Builder $client) => $client
-                ->whereColumn('clients.current_allocation_run_id', 'allocation_runs.id')))
-            ->whereHas('payment', fn (Builder $payment) => $payment->whereDate('paid_at', '<=', $date));
+        return $this->coverage->allocations($date);
     }
 
     private function page(
@@ -334,5 +348,29 @@ final class WorkspaceQuery
     private function href(string $path, array $query = []): string
     {
         return url($path).($query === [] ? '' : '?'.http_build_query($query));
+    }
+
+    private function contractLink(Contract $contract, string $date): array
+    {
+        $apartment = $contract->apartment;
+
+        return $this->link($apartment->project->name.' — ბინა '.$apartment->number,
+            '/contracts/'.$contract->id, 'contracts.view',
+            $apartment->project->city.' · '.$contract->contract_date->toDateString(), ['as_of' => $date]);
+    }
+
+    private function clientLink(Client $client): array
+    {
+        return $this->link($client->name, '/clients', 'clients.view', $client->personal_number, ['q' => $client->personal_number]);
+    }
+
+    private function projectLink(Project $project): array
+    {
+        return $this->link($project->name, '/apartments', 'apartments.view', $project->city, ['project_id' => $project->id]);
+    }
+
+    private function link(string $label, string $path, string $permission, ?string $description = null, array $query = []): array
+    {
+        return ['label' => $label, 'url' => $this->href($path, $query), 'description' => $description, 'permission' => $permission];
     }
 }

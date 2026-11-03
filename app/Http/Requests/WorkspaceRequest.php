@@ -21,6 +21,7 @@ final class WorkspaceRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['free', 'sold'])],
             'import_status' => ['nullable', Rule::in(ImportStatus::cases())],
+            'client_match' => ['nullable', Rule::in(['matched', 'unmatched'])],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
             'as_of' => ['nullable', 'date_format:Y-m-d'],
@@ -49,6 +50,7 @@ final class WorkspaceRequest extends FormRequest
             'q' => 'საძიებო ტექსტი', 'status' => 'სტატუსი', 'project_id' => 'პროექტი',
             'client_id' => 'კლიენტი', 'as_of' => 'საანგარიშო თარიღი',
             'import_status' => 'იმპორტის სტატუსი',
+            'client_match' => 'კლიენტთან კავშირი',
             'sort' => 'დალაგების ველი', 'direction' => 'დალაგების მიმართულება', 'page' => 'გვერდის ნომერი',
         ];
     }

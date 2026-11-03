@@ -23,7 +23,7 @@ export default function Form({ client }: PageProps<{ client: Client | null }>) {
             <Link href={route('clients.index')} className="underline">კლიენტებში დაბრუნება</Link>
             <form onSubmit={submit} className="space-y-5 rounded-lg bg-white p-6 shadow-sm">
                 {([['name', 'კლიენტის სახელი'], ['personal_number', 'პირადი ნომერი'], ['phone', 'ტელეფონი']] as const).map(([key, label]) => <label key={key} className="block text-sm">{label}
-                    <input className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    <input className="mt-1 block w-full rounded-md border-gray-300 focus:border-brand focus:ring-brand"
                         required={key !== 'phone'} maxLength={key === 'personal_number' ? 11 : 255}
                         inputMode={key === 'personal_number' ? 'numeric' : key === 'phone' ? 'tel' : 'text'}
                         value={form.data[key]} onChange={(e) => form.setData(key, e.target.value)} />

@@ -20,7 +20,8 @@ it('lists apartments with their project and exact GEL price', function (): void 
     expect($result['section'])->toBe('apartments')
         ->and($result['total'])->toBe(1)
         ->and($result['rows'][0]['id'])->toBe($apartment->id)
-        ->and($result['rows'][0]['project'])->toBe($apartment->project->name)
+        ->and($result['rows'][0]['project']['label'])->toBe($apartment->project->name)
+        ->and($result['rows'][0]['project']['url'])->toContain('/apartments?project_id='.$apartment->project_id)
         ->and($result['rows'][0]['price_GEL'])->toBe('9428.57')
         ->and($result['rows'][0]['status'])->toBe('free');
 });

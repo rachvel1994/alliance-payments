@@ -48,7 +48,9 @@ class DemoUsersSeeder extends Seeder
 
             $user->save();
 
-            $user->syncRoles([$data['role']]);
+            if (! $user->hasRole('admin', 'web')) {
+                $user->syncRoles([$data['role']]);
+            }
         }
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Models\User;
@@ -27,5 +29,22 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
         ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'required' => 'ველი „:attribute“ აუცილებელია.',
+            'string' => ':attribute უნდა იყოს ტექსტი.',
+            'max' => ':attribute არ უნდა აღემატებოდეს :max სიმბოლოს.',
+            'email.email' => 'მიუთითე სწორი ელ. ფოსტის მისამართი.',
+            'email.lowercase' => 'ელ. ფოსტა უნდა შეიცავდეს მხოლოდ პატარა ასოებს.',
+            'email.unique' => 'ამ ელ. ფოსტით ანგარიში უკვე არსებობს.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return ['name' => 'სახელი', 'email' => 'ელ. ფოსტა'];
     }
 }

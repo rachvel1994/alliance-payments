@@ -34,7 +34,7 @@ export default function ResetPassword({
 
             <form onSubmit={submit}>
                 <div>
-                    <InputLabel htmlFor="email" value="Email" />
+                    <InputLabel htmlFor="email" value="ელ. ფოსტა" />
 
                     <TextInput
                         id="email"
