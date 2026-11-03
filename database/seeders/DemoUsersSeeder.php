@@ -18,14 +18,20 @@ class DemoUsersSeeder extends Seeder
     {
         $users = [
             [
+                'name' => 'Admin',
+                'email' => 'admin@alliance.ge',
+                'role' => 'admin',
+                'password' => env('DEMO_ADMIN_PASSWORD'),
+            ],
+            [
                 'name' => 'Editor',
-                'email' => 'editor@example.test',
+                'email' => 'editor@alliance.ge',
                 'role' => 'editor',
                 'password' => env('DEMO_EDITOR_PASSWORD'),
             ],
             [
                 'name' => 'Viewer',
-                'email' => 'viewer@example.test',
+                'email' => 'viewer@alliance.ge',
                 'role' => 'viewer',
                 'password' => env('DEMO_VIEWER_PASSWORD'),
             ],

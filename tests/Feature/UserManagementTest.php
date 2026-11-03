@@ -230,19 +230,27 @@ it('keeps administrator and regular roles separate when seeders run again', func
         ->and(managementUser('viewer')->can('users.manage'))->toBeFalse();
 });
 
-it('preserves a promoted demo administrator when demo users are reseeded', function (): void {
-    $user = User::factory()->create(['email' => 'editor@example.test']);
-    $user->assignRole('admin');
+it('seeds demo accounts repeatedly and preserves a promoted administrator', function (bool $promoted): void {
+    $user = User::factory()->create(['email' => 'editor@alliance.ge']);
+    $user->assignRole($promoted ? 'admin' : 'viewer');
     $repository = Env::getRepository();
     $saved = [];
-    foreach (['DEMO_EDITOR_PASSWORD', 'DEMO_VIEWER_PASSWORD'] as $key) {
+    foreach (['DEMO_ADMIN_PASSWORD', 'DEMO_EDITOR_PASSWORD', 'DEMO_VIEWER_PASSWORD'] as $key) {
         $saved[$key] = $repository->get($key);
         $repository->clear($key);
         $repository->set($key, 'Test-seeder-password42!');
     }
     try {
         $this->seed(DemoUsersSeeder::class);
-        expect($user->fresh()->hasRole('admin'))->toBeTrue();
+        $this->seed(DemoUsersSeeder::class);
+        expect($user->fresh()->getRoleNames()->all())->toBe([$promoted ? 'admin' : 'editor'])
+            ->and(User::query()->where('email', 'admin@alliance.ge')->firstOrFail()->hasRole('admin'))->toBeTrue()
+            ->and(User::query()->where('email', 'viewer@alliance.ge')->firstOrFail()->getRoleNames()->all())->toBe(['viewer'])
+            ->and(User::query()->whereIn('email', ['admin@alliance.ge', 'editor@alliance.ge', 'viewer@alliance.ge'])->count())->toBe(3);
+        foreach (['admin', 'editor', 'viewer'] as $role) {
+            $demo = User::query()->where('email', $role.'@alliance.ge')->firstOrFail();
+            expect(Hash::check('Test-seeder-password42!', $demo->password))->toBeTrue();
+        }
     } finally {
         foreach ($saved as $key => $value) {
             $repository->clear($key);
@@ -251,7 +259,7 @@ it('preserves a promoted demo administrator when demo users are reseeded', funct
             }
         }
     }
-});
+})->with(['regular editor' => [false], 'promoted editor' => [true]]);
 
 it('opens a permitted section on login for users with individual permissions', function (): void {
     $user = User::factory()->create();

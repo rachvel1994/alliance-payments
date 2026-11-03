@@ -24,13 +24,7 @@ final class SaveUser
                 $role = $data['role'] ?? null;
                 $permissions = $data['permissions'];
 
-                if ($user->exists && $user->is($actor)
-                    && ($role !== 'admin' || collect($permissions)->sort()->values()->all() !== $user->permissions->pluck('name')->sort()->values()->all())) {
-                    throw ValidationException::withMessages(['role' => 'საკუთარი როლისა და უფლებების შეცვლა ამ გვერდიდან შეუძლებელია.']);
-                }
-                if ($user->exists && $user->hasRole('admin', 'web') && $role !== 'admin' && User::role('admin', 'web')->count() <= 1) {
-                    throw ValidationException::withMessages(['role' => 'ბოლო ადმინისტრატორის როლის შეცვლა შეუძლებელია.']);
-                }
+                $this->ensureAccessCanBeChanged($user, $actor, $role, $permissions);
 
                 $user->fill(['name' => $data['name'], 'email' => $data['email']]);
                 if (! $user->exists) {
@@ -40,17 +34,46 @@ final class SaveUser
                     $user->email_verified_at = null;
                 }
                 $user->save();
-                if ($role !== null) {
-                    $inherited = Role::findByName($role, 'web')->permissions->pluck('name')->all();
-                    $permissions = array_values(array_diff($permissions, $inherited));
-                }
-                $user->syncRoles($role === null ? [] : [$role]);
-                $user->syncPermissions($permissions);
+                $this->assignAccess($user, $role, $permissions);
 
                 return $user;
             }, 3);
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages(['email' => 'ამ ელ. ფოსტით მომხმარებელი უკვე არსებობს.']);
         }
+    }
+
+    private function ensureAccessCanBeChanged(User $user, User $actor, ?string $role, array $permissions): void
+    {
+        if (! $user->exists) {
+            return;
+        }
+
+        if ($user->is($actor)) {
+            $currentPermissions = $user->permissions->pluck('name')->sort()->values()->all();
+            $requestedPermissions = collect($permissions)->sort()->values()->all();
+
+            if ($role !== 'admin' || $currentPermissions !== $requestedPermissions) {
+                throw ValidationException::withMessages([
+                    'role' => 'საკუთარი როლისა და უფლებების შეცვლა ამ გვერდიდან შეუძლებელია.',
+                ]);
+            }
+        }
+
+        $removesAdminRole = $user->hasRole('admin', 'web') && $role !== 'admin';
+        if ($removesAdminRole && User::role('admin', 'web')->count() <= 1) {
+            throw ValidationException::withMessages(['role' => 'ბოლო ადმინისტრატორის როლის შეცვლა შეუძლებელია.']);
+        }
+    }
+
+    private function assignAccess(User $user, ?string $role, array $permissions): void
+    {
+        if ($role !== null) {
+            $inheritedPermissions = Role::findByName($role, 'web')->permissions->pluck('name')->all();
+            $permissions = array_values(array_diff($permissions, $inheritedPermissions));
+        }
+
+        $user->syncRoles($role === null ? [] : [$role]);
+        $user->syncPermissions($permissions);
     }
 }
