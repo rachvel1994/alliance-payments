@@ -1,3 +1,4 @@
+import ClearFiltersLink from '@/Components/ClearFiltersLink';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -105,9 +106,7 @@ export default function Index({
                                 <PrimaryButton disabled={form.processing} className="min-h-11">
                                     {form.processing ? 'იტვირთება…' : 'ძებნა'}
                                 </PrimaryButton>
-                                <Link href={route('clients.index')} className="text-sm text-gray-600 underline focus:outline-none focus:ring-2 focus:ring-brand">
-                                    გასუფთავება
-                                </Link>
+                                <ClearFiltersLink href={route('clients.index')} />
                             </div>
                         </form>
                     </section>

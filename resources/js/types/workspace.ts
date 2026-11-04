@@ -20,6 +20,7 @@ export type WorkspaceSearch = {
     project_id: string;
     client_id: string;
     as_of: string;
+    date_from: string;
     sort: string;
     direction: string;
     import_status: string;

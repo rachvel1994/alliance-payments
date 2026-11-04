@@ -160,3 +160,36 @@ it('returns an empty overdue report with a zero balance', function (): void {
         ->and($result['rows'])->toBe([])
         ->and($result['summary']['overdue_GEL'])->toBe('0.00');
 });
+
+it('includes both payment date boundaries and keeps the period in detail and pagination links', function (): void {
+    foreach (['2026-01-31', '2026-02-01', '2026-03-15', '2026-03-16'] as $date) {
+        Payment::factory()->unmatched()->create(['paid_at' => $date]);
+    }
+    Payment::factory()->count(20)->unmatched()->create(['paid_at' => '2026-02-20']);
+    $result = app(WorkspaceQuery::class)->payments(['date_from' => '2026-02-01', 'as_of' => '2026-03-15']);
+    $last = app(WorkspaceQuery::class)->payments(['date_from' => '2026-02-01', 'as_of' => '2026-03-15', 'page' => 2]);
+
+    expect($result['total'])->toBe(22)
+        ->and($result['rows'][0]['date'])->toBe('2026-02-01')
+        ->and($last['rows'][1]['date'])->toBe('2026-03-15')
+        ->and($result['rows'][0]['_url'])->toContain('date_from=2026-02-01')
+        ->and(collect($result['links'])->last()['url'])->toContain('date_from=2026-02-01');
+});
+
+it('filters installments by period without discarding earlier coverage or the full contract balance', function (): void {
+    [$client, $contract] = reportingSchedule([['2026-01-01', 10000], ['2026-02-01', 10000], ['2026-03-01', 10000]]);
+    reportingPayment($client, '150.00', '2026-01-02', 'EARLIER-COVERAGE');
+    $filters = ['date_from' => '2026-02-01', 'as_of' => '2026-03-01'];
+    $contractResult = app(WorkspaceQuery::class)->contract($contract, $filters);
+    $overdue = app(WorkspaceQuery::class)->overdue($filters);
+
+    expect($contractResult['total'])->toBe(2)
+        ->and($contractResult['rows'][0]['paid_GEL'])->toBe('50.00')
+        ->and($contractResult['rows'][0]['status'])->toBe('overdue')
+        ->and($contractResult['rows'][1]['status'])->toBe('pending')
+        ->and($contractResult['summary']['paid_GEL'])->toBe('150.00')
+        ->and($contractResult['summary']['remaining_GEL'])->toBe('150.00')
+        ->and($overdue['total'])->toBe(1)
+        ->and($overdue['summary']['overdue_GEL'])->toBe('50.00')
+        ->and($overdue['rows'][0]['_url'])->toContain('date_from=2026-02-01');
+});

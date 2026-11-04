@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\PaymentImport;
 use App\Models\Project;
 use App\Support\Money;
+use App\Support\ReportingPeriod;
 use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
@@ -27,7 +28,8 @@ final readonly class OverviewQuery
 
     public function handle(array $filters, array $permissions): array
     {
-        $date = $filters['as_of'] ?? now()->toDateString();
+        $period = ReportingPeriod::fromFilters($filters);
+        $date = $period->to;
         $showClients = in_array('clients.view', $permissions, true);
         $showContracts = in_array('contracts.view', $permissions, true);
         $showPayments = in_array('payments.view', $permissions, true);
@@ -36,6 +38,7 @@ final readonly class OverviewQuery
 
         return [
             'asOf' => $date,
+            'dateFrom' => $period->from,
             'portfolio' => [
                 'clients' => $showClients ? Client::query()->count() : null,
                 'contracts' => $showContracts ? Contract::query()->whereDate('contract_date', '<=', $date)->count() : null,
@@ -44,9 +47,9 @@ final readonly class OverviewQuery
                 'free' => $showApartments ? Apartment::query()->where('status', 'free')->count() : null,
                 'sold' => $showApartments ? Apartment::query()->where('status', 'sold')->count() : null,
             ],
-            'payments' => $showPayments ? $this->payments($date, $showClients) : null,
-            'financial' => $showContracts && $showPayments ? $this->financial($date, $showClients) : null,
-            'monthly' => $this->monthly($date, $showPayments, $showContracts),
+            'payments' => $showPayments ? $this->payments($period, $showClients) : null,
+            'financial' => $showContracts && $showPayments ? $this->financial($period, $showClients) : null,
+            'monthly' => $this->monthly($period, $showPayments, $showContracts),
             'projects' => $showApartments ? $this->projects() : [],
             'imports' => $showImports ? $this->imports() : null,
         ];
@@ -70,11 +73,13 @@ final readonly class OverviewQuery
             ])->all();
     }
 
-    private function payments(string $date, bool $showClients): array
+    private function payments(ReportingPeriod $period, bool $showClients): array
     {
-        $payments = Payment::query()->whereDate('paid_at', '<=', $date);
+        $date = $period->to;
+        $payments = $period->apply(Payment::query(), 'paid_at');
         $received = (clone $payments)->sum('amount_minor');
-        $allocated = $this->coverage->allocations($date)->sum('amount_minor');
+        $allocated = $this->coverage->allocations($date)
+            ->whereHas('payment', fn (Builder $payments) => $period->apply($payments, 'paid_at'))->sum('amount_minor');
         $unmatched = (clone $payments)->whereNull('client_id');
         $recent = (clone $payments)->with('client:id,name')
             ->orderByDesc('paid_at')->orderByDesc('id')->limit(5)->get();
@@ -93,16 +98,18 @@ final readonly class OverviewQuery
                 'date' => $payment->paid_at->toDateString(),
                 'amount_GEL' => Money::formatMinor($payment->amount_minor),
                 'matched' => $payment->client_id !== null,
-                'url' => '/payments/'.$payment->id.'?as_of='.$date,
+                'url' => '/payments/'.$payment->id.'?'.http_build_query($period->parameters()),
             ])->all(),
         ];
     }
 
-    private function financial(string $date, bool $showClients): array
+    private function financial(ReportingPeriod $period, bool $showClients): array
     {
+        $date = $period->to;
         $installments = $this->coverage->installments($date)
             ->whereHas('contract', fn (Builder $contracts) => $contracts->whereDate('contract_date', '<=', $date));
-        $overdue = (clone $installments)->whereDate('due_date', '<', $date)->whereRaw(self::REMAINING_AMOUNT.' > 0');
+        $selectedInstallments = $period->from === null ? clone $installments : $period->apply(clone $installments, 'due_date');
+        $overdue = (clone $selectedInstallments)->whereDate('due_date', '<', $date)->whereRaw(self::REMAINING_AMOUNT.' > 0');
         $price = Contract::query()->whereDate('contract_date', '<=', $date)->sum('price_minor');
         $paid = $this->coverage->allocations($date)
             ->whereHas('installment.contract', fn (Builder $contracts) => $contracts->whereDate('contract_date', '<=', $date))
@@ -122,8 +129,8 @@ final readonly class OverviewQuery
             'overdue_clients' => $showClients ? (clone $overdue)
                 ->join('contracts', 'contracts.id', '=', 'installments.contract_id')
                 ->distinct()->count('contracts.client_id') : null,
-            'states' => $this->installmentStates(clone $installments, $date),
-            'debtors' => $showClients ? $this->debtors(clone $overdue, $date) : [],
+            'states' => $this->installmentStates(clone $selectedInstallments, $date),
+            'debtors' => $showClients ? $this->debtors(clone $overdue, $period) : [],
             'upcoming' => $this->upcomingInstallments(clone $installments, $date),
         ];
     }
@@ -148,7 +155,7 @@ final readonly class OverviewQuery
             ])->all();
     }
 
-    private function debtors(Builder $overdue, string $date): array
+    private function debtors(Builder $overdue, ReportingPeriod $period): array
     {
         $debtors = $overdue->join('contracts', 'contracts.id', '=', 'installments.contract_id')
             ->reorder()->select('contracts.client_id')
@@ -160,7 +167,7 @@ final readonly class OverviewQuery
         return $debtors->map(fn (object $debtor): array => [
             'name' => $clients[$debtor->client_id]->name,
             'amount_GEL' => Money::formatMinor($debtor->overdue_minor),
-            'url' => '/overdue?client_id='.$debtor->client_id.'&as_of='.$date,
+            'url' => '/overdue?'.http_build_query(['client_id' => $debtor->client_id, ...$period->parameters()]),
         ])->all();
     }
 
@@ -184,23 +191,29 @@ final readonly class OverviewQuery
             })->all();
     }
 
-    private function monthly(string $date, bool $showPayments, bool $showContracts): array
+    private function monthly(ReportingPeriod $period, bool $showPayments, bool $showContracts): array
     {
+        $date = $period->to;
         if (! $showPayments && ! $showContracts) {
             return [];
         }
 
-        $start = CarbonImmutable::parse($date)->startOfMonth()->subMonths(11);
+        $start = $period->from === null
+            ? CarbonImmutable::parse($date)->startOfMonth()->subMonths(11)
+            : CarbonImmutable::parse($period->from)->startOfMonth();
+        $firstDate = $period->from ?? $start->toDateString();
         $received = $showPayments
-            ? $this->monthlyTotals(Payment::query(), 'paid_at', $start->toDateString(), $date)
+            ? $this->monthlyTotals(Payment::query(), 'paid_at', $firstDate, $date)
             : [];
         $installments = Installment::query()
             ->whereHas('contract', fn (Builder $contracts) => $contracts->whereDate('contract_date', '<=', $date));
         $scheduled = $showContracts
-            ? $this->monthlyTotals($installments, 'due_date', $start->toDateString(), $date)
+            ? $this->monthlyTotals($installments, 'due_date', $firstDate, $date)
             : [];
 
-        return collect(range(0, 11))->map(function (int $offset) use ($start, $received, $scheduled, $showPayments, $showContracts): array {
+        $months = (int) $start->diffInMonths(CarbonImmutable::parse($date)->startOfMonth());
+
+        return collect(range(0, $months))->map(function (int $offset) use ($start, $received, $scheduled, $showPayments, $showContracts): array {
             $month = $start->addMonths($offset)->format('Y-m');
 
             return [

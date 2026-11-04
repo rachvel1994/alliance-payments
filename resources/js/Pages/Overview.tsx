@@ -2,7 +2,8 @@ import { CashflowChart, CoverageChart, ProjectChart } from '@/Components/Overvie
 import { formatAmount } from '@/Components/DataValue';
 import Icon, { IconName } from '@/Components/Icon';
 import PrimaryButton from '@/Components/PrimaryButton';
-import InputError from '@/Components/InputError';
+import ClearFiltersLink from '@/Components/ClearFiltersLink';
+import DateRangeInput from '@/Components/DateRangeInput';
 import StatusBadge from '@/Components/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { OverviewProps } from '@/types/overview';
@@ -90,14 +91,28 @@ function Empty({ children }: { children: ReactNode }) {
     return <p className="py-8 text-center text-sm leading-6 text-gray-500">{children}</p>;
 }
 
-export default function Overview({ asOf, portfolio, payments, financial, monthly, projects, imports }: OverviewProps) {
+export default function Overview({
+    asOf,
+    dateFrom,
+    portfolio,
+    payments,
+    financial,
+    monthly,
+    projects,
+    imports,
+}: OverviewProps) {
     const { auth, flash } = usePage().props;
     const can = (permission: string) => auth.permissions.includes(permission);
-    const form = useForm({ as_of: asOf });
+    const form = useForm({ date_from: dateFrom ?? '', as_of: asOf });
     const filter = (event: FormEvent) => {
         event.preventDefault();
         form.get(route('overview.index'), { preserveScroll: true });
     };
+    const periodQuery = new URLSearchParams({
+        as_of: asOf,
+        ...(dateFrom ? { date_from: dateFrom } : {}),
+    }).toString();
+    const periodLabel = dateFrom ? `${dateFrom} – ${asOf}` : `${asOf}-ის ჩათვლით`;
     const hasPortfolio = Object.values(portfolio).some((value) => value !== null);
     const importTotal = imports ? imports.imported + imports.duplicates + imports.rejected : 0;
 
@@ -109,22 +124,18 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                         <h1 className="text-2xl font-semibold tracking-tight text-ink">მიმოხილვა</h1>
                         <p className="mt-2 text-sm text-gray-500">გადახდები, ვალდებულებები და პროექტების მდგომარეობა</p>
                     </div>
-                    <form onSubmit={filter} className="flex max-w-full flex-wrap items-end gap-2">
-                        <div>
-                            <label htmlFor="overview-date" className="mb-1.5 block text-xs font-medium text-gray-600">
-                                საანგარიშო თარიღი
-                            </label>
-                            <input
-                                id="overview-date"
-                                type="date"
-                                required
-                                value={form.data.as_of}
-                                onChange={(event) => form.setData('as_of', event.target.value)}
-                                className="min-h-11 max-w-full rounded-lg border-gray-300 text-sm shadow-none focus:border-brand focus:ring-brand"
-                            />
-                            <InputError message={form.errors.as_of} />
-                        </div>
-                        <PrimaryButton disabled={form.processing}>ჩვენება</PrimaryButton>
+                    <form onSubmit={filter} className="flex w-full max-w-full flex-wrap items-end gap-2 sm:w-auto">
+                        <DateRangeInput
+                            from={form.data.date_from}
+                            to={form.data.as_of}
+                            onFromChange={(value) => form.setData('date_from', value)}
+                            onToChange={(value) => form.setData('as_of', value)}
+                            errors={form.errors}
+                        />
+                        <PrimaryButton className="min-h-11" disabled={form.processing}>
+                            ჩვენება
+                        </PrimaryButton>
+                        <ClearFiltersLink href={route('overview.index')} />
                     </form>
                 </div>
             }
@@ -143,12 +154,14 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                     <section aria-label="თანხების მიმოხილვა" className="overflow-hidden rounded-xl bg-ink text-white">
                         <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr_1fr] lg:items-end">
                             <div>
-                                <p className="text-sm text-white/70">სულ შემოსული თანხა</p>
+                                <p className="text-sm text-white/70">
+                                    {dateFrom ? 'პერიოდში შემოსული თანხა' : 'სულ შემოსული თანხა'}
+                                </p>
                                 <p className="mt-3">
                                     <Amount value={payments.received_GEL} large />
                                 </p>
                                 <p className="mt-3 text-xs text-white/60">
-                                    {payments.count} გადახდა · {asOf}-ის ჩათვლით
+                                    {payments.count} გადახდა · {periodLabel}
                                 </p>
                             </div>
                             <div className="border-t border-white/15 pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
@@ -163,11 +176,15 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                                 <p className="text-xl">
                                     <Amount value={payments.unallocated_GEL} />
                                 </p>
-                                <p className="mt-3 text-xs text-white/60">ავანსი და დაუკავშირებელი გადახდები</p>
+                                <p className="mt-3 text-xs text-white/60">
+                                    {dateFrom
+                                        ? 'არჩეული გადახდების ავანსი და დაუკავშირებელი თანხა'
+                                        : 'ავანსი და დაუკავშირებელი გადახდები'}
+                                </p>
                             </div>
                         </div>
                         <Link
-                            href={`/payments?as_of=${asOf}`}
+                            href={`/payments?${periodQuery}`}
                             className="flex min-h-11 items-center justify-between border-t border-white/10 bg-white/5 px-6 py-3 text-xs font-medium text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:px-8"
                         >
                             გადახდების ნახვა
@@ -182,15 +199,15 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                             <Metric
                                 title="ვადაგადაცილებული თანხა"
                                 value={<Amount value={financial.overdue_GEL} />}
-                                hint={`${financial.overdue_installments} შენატანი${financial.overdue_clients === null ? '' : ` · ${financial.overdue_clients} კლიენტი`}`}
+                                hint={`${periodLabel} · ${financial.overdue_installments} შენატანი${financial.overdue_clients === null ? '' : ` · ${financial.overdue_clients} კლიენტი`}`}
                                 icon="overdue"
                                 danger
-                                url={can('clients.view') ? `/overdue?as_of=${asOf}` : undefined}
+                                url={can('clients.view') ? `/overdue?${periodQuery}` : undefined}
                             />
                             <Metric
                                 title="დარჩენილი ვალდებულება"
                                 value={<Amount value={financial.remaining_GEL} />}
-                                hint="მომავალი და ვადაგადაცილებული გადასახდელები"
+                                hint={`სრული ნაშთი ${asOf}-ის მდგომარეობით`}
                                 icon="contracts"
                                 url="/contracts"
                             />
@@ -218,7 +235,7 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                             value={<Amount value={payments.unmatched_GEL} />}
                             hint={`${payments.unmatched_count} გადახდას კლიენტი არ უკავშირდება`}
                             icon="payments"
-                            url={`/payments?client_match=unmatched&as_of=${asOf}`}
+                            url={`/payments?client_match=unmatched&${periodQuery}`}
                         />
                     )}
                 </div>
@@ -258,7 +275,11 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                         {monthly.length > 0 && (
                             <Panel
                                 title="თანხების დინამიკა"
-                                hint="ბოლო 12 თვე · მიმდინარე თვე საანგარიშო თარიღამდე · თანხები ლარში"
+                                hint={
+                                    dateFrom
+                                        ? `${periodLabel} · თანხები ლარში`
+                                        : 'ბოლო 12 თვე · დასრულების თარიღის ჩათვლით · თანხები ლარში'
+                                }
                             >
                                 <CashflowChart monthly={monthly} />
                             </Panel>
@@ -266,7 +287,7 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                         {financial && (
                             <Panel
                                 title="გადახდის გრაფიკების მდგომარეობა"
-                                hint="შენატანების რაოდენობა საანგარიშო თარიღისთვის"
+                                hint={`შენატანების რაოდენობა · ${periodLabel}`}
                             >
                                 <CoverageChart states={financial.states} />
                                 <div className="mt-5 border-t border-gray-100 pt-4">
@@ -286,7 +307,9 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                                     >
                                         <div
                                             className="h-full bg-green-600"
-                                            style={{ width: `${Math.min(100, Number(financial.paid_percent))}%` }}
+                                            style={{
+                                                width: `${Math.min(100, Number(financial.paid_percent))}%`,
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -352,7 +375,9 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                                         <>
                                             <span
                                                 className="bg-green-600"
-                                                style={{ width: `${(payments.matched_count / payments.count) * 100}%` }}
+                                                style={{
+                                                    width: `${(payments.matched_count / payments.count) * 100}%`,
+                                                }}
                                             />
                                             <span
                                                 className="bg-amber-400"
@@ -395,7 +420,7 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                                 title="ყველაზე დიდი დავალიანებები"
                                 hint="ხუთი კლიენტი დარჩენილი ვადაგადაცილებული თანხით"
                                 action={
-                                    <Link href={`/overdue?as_of=${asOf}`} className={linkClass}>
+                                    <Link href={`/overdue?${periodQuery}`} className={linkClass}>
                                         ყველა
                                         <Icon name="arrow" className="h-4 w-4" />
                                     </Link>
@@ -457,9 +482,9 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                         {payments && (
                             <Panel
                                 title="ბოლო გადახდები"
-                                hint="გადახდის თარიღით · საანგარიშო თარიღის ჩათვლით"
+                                hint={`გადახდის თარიღით · ${periodLabel}`}
                                 action={
-                                    <Link href={`/payments?as_of=${asOf}`} className={linkClass}>
+                                    <Link href={`/payments?${periodQuery}`} className={linkClass}>
                                         ყველა
                                         <Icon name="arrow" className="h-4 w-4" />
                                     </Link>
@@ -509,9 +534,21 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                             >
                                 <div className="grid grid-cols-3 gap-2">
                                     {[
-                                        { label: 'ჩაწერილი', value: imports.imported, color: 'text-green-700' },
-                                        { label: 'დუბლიკატი', value: imports.duplicates, color: 'text-gray-600' },
-                                        { label: 'უარყოფილი', value: imports.rejected, color: 'text-red-700' },
+                                        {
+                                            label: 'ჩაწერილი',
+                                            value: imports.imported,
+                                            color: 'text-green-700',
+                                        },
+                                        {
+                                            label: 'დუბლიკატი',
+                                            value: imports.duplicates,
+                                            color: 'text-gray-600',
+                                        },
+                                        {
+                                            label: 'უარყოფილი',
+                                            value: imports.rejected,
+                                            color: 'text-red-700',
+                                        },
                                     ].map((item) => (
                                         <div key={item.label}>
                                             <p className={`text-2xl font-semibold tabular-nums ${item.color}`}>
@@ -529,15 +566,21 @@ export default function Overview({ asOf, portfolio, payments, financial, monthly
                                         <>
                                             <span
                                                 className="bg-green-600"
-                                                style={{ width: `${(imports.imported / importTotal) * 100}%` }}
+                                                style={{
+                                                    width: `${(imports.imported / importTotal) * 100}%`,
+                                                }}
                                             />
                                             <span
                                                 className="bg-gray-400"
-                                                style={{ width: `${(imports.duplicates / importTotal) * 100}%` }}
+                                                style={{
+                                                    width: `${(imports.duplicates / importTotal) * 100}%`,
+                                                }}
                                             />
                                             <span
                                                 className="bg-red-600"
-                                                style={{ width: `${(imports.rejected / importTotal) * 100}%` }}
+                                                style={{
+                                                    width: `${(imports.rejected / importTotal) * 100}%`,
+                                                }}
                                             />
                                         </>
                                     )}

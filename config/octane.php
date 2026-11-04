@@ -34,11 +34,25 @@ return [
     | when starting, restarting, or stopping your server via the CLI. You
     | are free to change this to the supported server of your choosing.
     |
-    | Supported: "roadrunner", "swoole", "frankenphp"
+    | This application uses FrankenPHP.
     |
     */
 
-    'server' => env('OCTANE_SERVER', 'roadrunner'),
+    'server' => env('OCTANE_SERVER', 'frankenphp'),
+
+    'host' => env('OCTANE_HOST', '127.0.0.1'),
+
+    'port' => (int) env('OCTANE_PORT', 8000),
+
+    'workers' => (int) env('OCTANE_WORKERS', 4),
+
+    'max_requests' => (int) env('OCTANE_MAX_REQUESTS', 500),
+
+    'caddy' => [
+        'env' => [
+            'PHP_INI_SCAN_DIR' => base_path('php/frankenphp.d'),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -233,22 +247,5 @@ return [
     */
 
     'state_file' => env('OCTANE_STATE_FILE', storage_path('logs/octane-server-state.json')),
-
-    /*
-    |--------------------------------------------------------------------------
-    | RoadRunner Options
-    |--------------------------------------------------------------------------
-    |
-    | The following options are only used when the RoadRunner server is the
-    | server powering your application. You may customize the path to the
-    | worker binary here, which is useful for zero-downtime deployments
-    | where the application is served from a symlinked "current" path.
-    |
-    */
-
-    'roadrunner' => [
-        'command' => env('OCTANE_ROADRUNNER_COMMAND', 'vendor/bin/roadrunner-worker'),
-        'http_middleware' => env('OCTANE_ROADRUNNER_HTTP_MIDDLEWARE', 'static'),
-    ],
 
 ];

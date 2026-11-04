@@ -219,3 +219,49 @@ it('rejects invalid report dates with Georgian validation', function (): void {
         ->assertRedirect('/overview')->assertSessionHasErrors('as_of');
     expect(session('errors')->first('as_of'))->toMatch('/[ა-ჰ]/u');
 });
+
+it('reports a cross-month period while preserving earlier payments in the closing balance', function (): void {
+    overviewFixture();
+    $data = app(OverviewQuery::class)->handle(['date_from' => '2026-01-15', 'as_of' => '2026-03-01'], overviewPermissions());
+    $monthly = collect($data['monthly'])->keyBy('month');
+
+    expect($data['dateFrom'])->toBe('2026-01-15')
+        ->and($data['payments']['received_GEL'])->toBe('37.34')
+        ->and($data['payments']['allocated_GEL'])->toBe('25.00')
+        ->and($data['payments']['unallocated_GEL'])->toBe('12.34')
+        ->and($data['financial']['paid_GEL'])->toBe('125.00')
+        ->and($data['financial']['remaining_GEL'])->toBe('175.01')
+        ->and($data['financial']['overdue_GEL'])->toBe('75.00')
+        ->and($data['financial']['states'][0]['count'])->toBe(0)
+        ->and($monthly)->toHaveCount(3)
+        ->and($monthly['2026-01']['received_GEL'])->toBe('0.00')
+        ->and($monthly['2026-01']['scheduled_GEL'])->toBe('0.00')
+        ->and($monthly['2026-03']['scheduled_GEL'])->toBe('100.01')
+        ->and($data['payments']['recent'][0]['url'])->toContain('date_from=2026-01-15')
+        ->and($data['financial']['debtors'][0]['url'])->toContain('date_from=2026-01-15');
+});
+
+it('accepts a one-day reporting period including its payment', function (): void {
+    overviewFixture();
+    $user = User::factory()->create();
+    $user->assignRole('viewer');
+    $this->actingAs($user)->get('/overview?date_from=2026-02-02&as_of=2026-02-02')
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('dateFrom', '2026-02-02')->where('payments.count', 1)
+        ->where('payments.received_GEL', '25.00')->has('monthly', 1));
+});
+
+it('validates reporting dates on the server', function (array $dates, string $field, string $message): void {
+    $user = User::factory()->create();
+    $user->assignRole('viewer');
+    foreach (['/overview', '/payments'] as $path) {
+        $this->actingAs($user)->getJson($path.'?'.http_build_query($dates))
+            ->assertUnprocessable()->assertJsonValidationErrors($field)
+            ->assertJsonPath('errors.'.$field.'.0', $message);
+    }
+})->with([
+    'reversed' => [['date_from' => '2026-04-01', 'as_of' => '2026-03-31'], 'as_of', 'დასრულების თარიღი დაწყების თარიღზე ადრე არ უნდა იყოს.'],
+    'missing end' => [['date_from' => '2026-04-01'], 'as_of', 'მიუთითე დასრულების თარიღი.'],
+    'invalid start' => [['date_from' => '2026-02-30', 'as_of' => '2026-03-31'], 'date_from', 'დაწყების თარიღი უნდა იყოს ფორმატში Y-m-d.'],
+    'invalid end' => [['date_from' => '2026-02-01', 'as_of' => '2026-02-30'], 'as_of', 'დასრულების თარიღი უნდა იყოს ფორმატში Y-m-d.'],
+]);

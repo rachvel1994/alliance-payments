@@ -18,7 +18,9 @@ type WorkspaceData = {
     importStatus: string | null;
 };
 function ImportProgress() {
-    usePoll(2000, { only: ['rows', 'links', 'total', 'summary', 'importStatus'] });
+    usePoll(2000, {
+        only: ['rows', 'links', 'total', 'summary', 'importStatus'],
+    });
     return (
         <p role="status" className="text-sm text-gray-600">
             ფაილი მუშავდება. შედეგები ავტომატურად განახლდება.
@@ -53,6 +55,7 @@ export default function Workspace({
         project_id: String(filters.project_id ?? ''),
         client_id: String(filters.client_id ?? ''),
         as_of: String(filters.as_of ?? ''),
+        date_from: String(filters.date_from ?? ''),
         sort: String(filters.sort ?? sortOptions[0].value),
         direction: String(filters.direction ?? 'asc'),
         import_status: String(filters.import_status ?? ''),

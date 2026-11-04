@@ -1,5 +1,6 @@
 export interface OverviewProps {
     asOf: string;
+    dateFrom: string | null;
     portfolio: Record<'clients' | 'contracts' | 'projects' | 'apartments' | 'free' | 'sold', number | null>;
     payments: null | {
         count: number;
@@ -9,7 +10,14 @@ export interface OverviewProps {
         unmatched_count: number;
         unmatched_GEL: string;
         matched_count: number;
-        recent: { reference: string; payer: string; date: string; amount_GEL: string; matched: boolean; url: string }[];
+        recent: {
+            reference: string;
+            payer: string;
+            date: string;
+            amount_GEL: string;
+            matched: boolean;
+            url: string;
+        }[];
     };
     financial: null | {
         contract_value_GEL: string;
@@ -21,16 +29,37 @@ export interface OverviewProps {
         overdue_clients: number | null;
         states: { status: string; count: number }[];
         debtors: { name: string; amount_GEL: string; url: string }[];
-        upcoming: { name: string; date: string; amount_GEL: string; url: string }[];
+        upcoming: {
+            name: string;
+            date: string;
+            amount_GEL: string;
+            url: string;
+        }[];
     };
-    monthly: { month: string; received_GEL: string | null; scheduled_GEL: string | null }[];
-    projects: { name: string; city: string; free: number; sold: number; url: string }[];
+    monthly: {
+        month: string;
+        received_GEL: string | null;
+        scheduled_GEL: string | null;
+    }[];
+    projects: {
+        name: string;
+        city: string;
+        free: number;
+        sold: number;
+        url: string;
+    }[];
     imports: null | {
         files: number;
         imported: number;
         duplicates: number;
         rejected: number;
         statuses: Record<string, number>;
-        recent: { filename: string; status: string; imported: number; rejected: number; url: string }[];
+        recent: {
+            filename: string;
+            status: string;
+            imported: number;
+            rejected: number;
+            url: string;
+        }[];
     };
 }

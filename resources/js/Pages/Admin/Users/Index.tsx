@@ -1,3 +1,4 @@
+import ClearFiltersLink from '@/Components/ClearFiltersLink';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SelectInput from '@/Components/SelectInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -92,6 +93,7 @@ export default function Index({
                     >
                         ძებნა
                     </PrimaryButton>
+                    <ClearFiltersLink href={route('admin.users.index')} />
                 </form>
                 {search.errors.q && (
                     <p role="alert" className="text-sm text-red-600">

@@ -1,3 +1,5 @@
+import ClearFiltersLink from '@/Components/ClearFiltersLink';
+import DateRangeInput from '@/Components/DateRangeInput';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SelectInput from '@/Components/SelectInput';
 import { WorkspaceSearch } from '@/types/workspace';
@@ -10,6 +12,7 @@ type Props = { section: string; search: InertiaFormProps<WorkspaceSearch> };
 export default function Filters({ section, search }: Props) {
     const sortOptions = sorting[section] ?? sorting.contracts;
     const detail = ['contract', 'payment', 'import'].includes(section);
+    const showPeriod = ['overdue', 'contract', 'payment', 'payments'].includes(section);
 
     function handleSearch(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -35,16 +38,14 @@ export default function Filters({ section, search }: Props) {
                         />
                     </label>
                 )}
-                {['overdue', 'contract', 'payment'].includes(section) && (
-                    <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700">
-                        საანგარიშო თარიღი
-                        <input
-                            type="date"
-                            className="min-h-11 rounded-lg border-gray-300 text-sm font-normal focus:border-brand focus:ring-brand"
-                            value={search.data.as_of}
-                            onChange={(event) => search.setData('as_of', event.target.value)}
-                        />
-                    </label>
+                {showPeriod && (
+                    <DateRangeInput
+                        from={search.data.date_from}
+                        to={search.data.as_of}
+                        onFromChange={(value) => search.setData('date_from', value)}
+                        onToChange={(value) => search.setData('as_of', value)}
+                        errors={search.errors}
+                    />
                 )}
                 {section === 'apartments' && (
                     <SelectInput
@@ -107,9 +108,14 @@ export default function Filters({ section, search }: Props) {
                 <PrimaryButton disabled={search.processing} className="min-h-11">
                     {search.processing ? 'იტვირთება…' : 'ძებნა'}
                 </PrimaryButton>
+                <ClearFiltersLink href={window.location.pathname} />
             </form>
             {Object.entries(search.errors)
-                .filter(([key]) => !['sort', 'direction', 'status', 'import_status', 'client_match'].includes(key))
+                .filter(
+                    ([key]) =>
+                        !['sort', 'direction', 'status', 'import_status', 'client_match'].includes(key) &&
+                        !(showPeriod && ['as_of', 'date_from'].includes(key)),
+                )
                 .map(([key, error]) => (
                     <p key={key} role="alert" className="text-sm text-red-600">
                         {error}

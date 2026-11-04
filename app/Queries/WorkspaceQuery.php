@@ -16,6 +16,7 @@ use App\Models\PaymentImport;
 use App\Models\PaymentImportRow;
 use App\Models\Project;
 use App\Support\Money;
+use App\Support\ReportingPeriod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -80,7 +81,8 @@ final class WorkspaceQuery
 
     public function payments(array $filters): array
     {
-        $query = Payment::query()->with('client');
+        $period = ReportingPeriod::fromFilters($filters);
+        $query = $period->apply(Payment::query()->with('client'), 'paid_at');
         if (isset($filters['client_match'])) {
             $filters['client_match'] === 'unmatched' ? $query->whereNull('client_id') : $query->whereNotNull('client_id');
         }
@@ -103,8 +105,8 @@ final class WorkspaceQuery
             'payer' => $payment->payer_name,
             'client' => $payment->client === null ? '—' : $this->clientLink($payment->client),
             'client_match' => $payment->client_id === null ? 'unmatched' : 'matched',
-            'bank_reference' => $this->link($payment->bank_reference, '/payments/'.$payment->id, 'payments.view', query: ['as_of' => $this->date($filters)]),
-            '_url' => $this->href('/payments/'.$payment->id, ['as_of' => $this->date($filters)]),
+            'bank_reference' => $this->link($payment->bank_reference, '/payments/'.$payment->id, 'payments.view', query: ReportingPeriod::fromFilters($filters)->parameters()),
+            '_url' => $this->href('/payments/'.$payment->id, ReportingPeriod::fromFilters($filters)->parameters()),
         ], ['id' => 'id', 'date' => 'paid_at', 'amount' => 'amount_minor'], 'paid_at');
     }
 
@@ -115,15 +117,18 @@ final class WorkspaceQuery
         $query = $this->active($date)->where('payment_id', $payment->id)
             ->with('installment.contract.apartment.project');
         $allocatedMinor = (int) (clone $query)->sum('amount_minor');
+        if (isset($filters['date_from'])) {
+            $query->whereHas('installment', fn (Builder $installments) => ReportingPeriod::fromFilters($filters)->apply($installments, 'due_date'));
+        }
 
         return $this->page($query, 'payment', $filters, fn (PaymentAllocation $allocation): array => [
             'id' => $allocation->id,
-            'contract' => $this->contractLink($allocation->installment->contract, $date),
+            'contract' => $this->contractLink($allocation->installment->contract, $date, $filters['date_from'] ?? null),
             'project' => $this->projectLink($allocation->installment->contract->apartment->project),
             'apartment' => $allocation->installment->contract->apartment->number,
             'due_date' => $allocation->installment->due_date->toDateString(),
             'allocated_GEL' => Money::formatMinor($allocation->amount_minor),
-            '_url' => $this->href('/contracts/'.$allocation->installment->contract_id, ['as_of' => $date]),
+            '_url' => $this->href('/contracts/'.$allocation->installment->contract_id, ReportingPeriod::fromFilters($filters)->parameters()),
         ], ['id' => 'id', 'amount' => 'amount_minor'], 'id', [
             'bank_reference' => $payment->bank_reference,
             'payer' => $payment->payer_name,
@@ -148,6 +153,7 @@ final class WorkspaceQuery
             ->whereDate('installments.due_date', '<', $date)
             ->whereRaw($remaining.' > 0')
             ->with(['contract.client', 'contract.apartment.project']);
+        ReportingPeriod::fromFilters($filters)->apply($query, 'installments.due_date');
         if (isset($filters['client_id'])) {
             $query->whereHas('contract', fn (Builder $contract) => $contract->where('client_id', $filters['client_id']));
         }
@@ -170,12 +176,12 @@ final class WorkspaceQuery
             'id' => $installment->id,
             'client' => $this->clientLink($installment->contract->client),
             'personal_number' => $installment->contract->client->personal_number,
-            'contract' => $this->contractLink($installment->contract, $date),
+            'contract' => $this->contractLink($installment->contract, $date, $filters['date_from'] ?? null),
             'project' => $this->projectLink($installment->contract->apartment->project),
             'apartment' => $installment->contract->apartment->number,
             'due_date' => $installment->due_date->toDateString(),
             'overdue_GEL' => Money::formatMinor($installment->amount_minor - (int) $installment->paid_minor),
-            '_url' => $this->href('/contracts/'.$installment->contract_id, ['as_of' => $date]),
+            '_url' => $this->href('/contracts/'.$installment->contract_id, ReportingPeriod::fromFilters($filters)->parameters()),
         ], ['id' => 'installments.id', 'date' => 'installments.due_date', 'amount' => DB::raw($remaining)], 'installments.due_date', [
             'as_of' => $date,
             'overdue_GEL' => Money::formatMinor((string) $totalMinor),
@@ -202,14 +208,14 @@ final class WorkspaceQuery
 
         return $this->page($query, 'contracts', $filters, fn (Contract $contract): array => [
             'id' => $contract->id,
-            'contract' => $this->contractLink($contract, $this->date($filters)),
+            'contract' => $this->contractLink($contract, $this->date($filters), $filters['date_from'] ?? null),
             'client' => $this->clientLink($contract->client),
             'personal_number' => $contract->client->personal_number,
             'project' => $this->projectLink($contract->apartment->project),
             'apartment' => $contract->apartment->number,
             'date' => $contract->contract_date->toDateString(),
             'price_GEL' => Money::formatMinor($contract->price_minor),
-            '_url' => $this->href('/contracts/'.$contract->id, ['as_of' => $this->date($filters)]),
+            '_url' => $this->href('/contracts/'.$contract->id, ReportingPeriod::fromFilters($filters)->parameters()),
         ], ['id' => 'id', 'date' => 'contract_date', 'price' => 'price_minor'], 'id');
     }
 
@@ -222,8 +228,13 @@ final class WorkspaceQuery
             ->orderBy('id')->get()->groupBy('installment_id');
         $paidTotal = (int) $allocations->flatten(1)->sum('amount_minor');
 
-        return $this->page(Installment::query()->where('contract_id', $contract->id), 'contract', $filters,
-            function (Installment $installment) use ($allocations, $date): array {
+        $installments = Installment::query()->where('contract_id', $contract->id);
+        if (isset($filters['date_from'])) {
+            ReportingPeriod::fromFilters($filters)->apply($installments, 'due_date');
+        }
+
+        return $this->page($installments, 'contract', $filters,
+            function (Installment $installment) use ($allocations, $date, $filters): array {
                 $paid = $allocations->get($installment->id, collect());
                 $paidMinor = (int) $paid->sum('amount_minor');
                 $remaining = $installment->amount_minor - $paidMinor;
@@ -245,13 +256,13 @@ final class WorkspaceQuery
                     'status' => $status->value,
                     '_links' => $paid->map(fn (PaymentAllocation $allocation): array => [
                         'label' => $allocation->payment->bank_reference,
-                        'url' => $this->href('/payments/'.$allocation->payment_id, ['as_of' => $date]),
+                        'url' => $this->href('/payments/'.$allocation->payment_id, ReportingPeriod::fromFilters($filters)->parameters()),
                         'description' => Money::formatMinor($allocation->amount_minor).' ₾ · '.$allocation->payment->paid_at->toDateString(),
                         'permission' => 'payments.view',
                     ])->all(),
                 ];
             }, ['id' => 'id', 'date' => 'due_date', 'amount' => 'amount_minor'], 'due_date', [
-                'contract' => $this->contractLink($contract, $date),
+                'contract' => $this->contractLink($contract, $date, $filters['date_from'] ?? null),
                 'client' => $this->clientLink($contract->client),
                 'personal_number' => $contract->client->personal_number,
                 'phone' => $contract->client->phone,
@@ -292,7 +303,7 @@ final class WorkspaceQuery
             'area' => $apartment->area,
             'price_GEL' => Money::formatMinor($apartment->price_minor),
             'status' => $apartment->status,
-            'contract' => $apartment->contract === null ? null : $this->contractLink($apartment->contract, $this->date($filters)),
+            'contract' => $apartment->contract === null ? null : $this->contractLink($apartment->contract, $this->date($filters), $filters['date_from'] ?? null),
             '_edit_url' => $apartment->status === 'free' && ! $apartment->contract_exists
                 ? $this->href('/apartments/'.$apartment->id.'/edit') : null,
         ], ['id' => 'id', 'price' => 'price_minor'], 'id');
@@ -350,13 +361,13 @@ final class WorkspaceQuery
         return url($path).($query === [] ? '' : '?'.http_build_query($query));
     }
 
-    private function contractLink(Contract $contract, string $date): array
+    private function contractLink(Contract $contract, string $date, ?string $from = null): array
     {
         $apartment = $contract->apartment;
 
         return $this->link($apartment->project->name.' — ბინა '.$apartment->number,
             '/contracts/'.$contract->id, 'contracts.view',
-            $apartment->project->city.' · '.$contract->contract_date->toDateString(), ['as_of' => $date]);
+            $apartment->project->city.' · '.$contract->contract_date->toDateString(), (new ReportingPeriod($from, $date))->parameters());
     }
 
     private function clientLink(Client $client): array

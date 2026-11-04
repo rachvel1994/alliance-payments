@@ -47,7 +47,7 @@ export function CashflowChart({ monthly }: Pick<OverviewProps, 'monthly'>) {
             <div
                 className="h-72 w-full"
                 role="img"
-                aria-label="ბოლო 12 თვის მიღებული თანხები და გრაფიკით გადასახდელი თანხები, ლარში"
+                aria-label="პერიოდის მიღებული თანხები და გრაფიკით გადასახდელი თანხები, ლარში"
             >
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <ComposedChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }} accessibilityLayer>

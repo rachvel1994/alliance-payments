@@ -24,7 +24,9 @@ final class WorkspaceRequest extends FormRequest
             'client_match' => ['nullable', Rule::in(['matched', 'unmatched'])],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
-            'as_of' => ['nullable', 'date_format:Y-m-d'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'as_of' => ['bail', 'required_with:date_from', 'nullable', 'date_format:Y-m-d',
+                Rule::when($this->filled('date_from'), 'after_or_equal:date_from')],
             'sort' => ['nullable', Rule::in(['id', 'date', 'price', 'amount'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -41,6 +43,8 @@ final class WorkspaceRequest extends FormRequest
             'exists' => 'შერჩეული :attribute ვერ მოიძებნა.',
             'in' => 'აირჩიე :attribute დასაშვები სიიდან.',
             'date_format' => ':attribute უნდა იყოს ფორმატში :format.',
+            'as_of.required_with' => 'მიუთითე დასრულების თარიღი.',
+            'as_of.after_or_equal' => 'დასრულების თარიღი დაწყების თარიღზე ადრე არ უნდა იყოს.',
         ];
     }
 
@@ -48,7 +52,7 @@ final class WorkspaceRequest extends FormRequest
     {
         return [
             'q' => 'საძიებო ტექსტი', 'status' => 'სტატუსი', 'project_id' => 'პროექტი',
-            'client_id' => 'კლიენტი', 'as_of' => 'საანგარიშო თარიღი',
+            'client_id' => 'კლიენტი', 'as_of' => 'დასრულების თარიღი', 'date_from' => 'დაწყების თარიღი',
             'import_status' => 'იმპორტის სტატუსი',
             'client_match' => 'კლიენტთან კავშირი',
             'sort' => 'დალაგების ველი', 'direction' => 'დალაგების მიმართულება', 'page' => 'გვერდის ნომერი',
