@@ -202,6 +202,8 @@ return [
         'bootstrap',
         'config/**/*.php',
         'database/**/*.php',
+        'lang/**/*.php',
+        'lang/*.json',
         'public/**/*.php',
         'resources/**/*.php',
         'routes',

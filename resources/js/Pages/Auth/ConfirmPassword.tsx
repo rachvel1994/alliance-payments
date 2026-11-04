@@ -21,16 +21,13 @@ export default function ConfirmPassword() {
 
     return (
         <GuestLayout>
-            <Head title="Confirm Password" />
+            <Head title="პაროლის დადასტურება" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                This is a secure area of the application. Please confirm your
-                password before continuing.
-            </div>
+            <div className="mb-4 text-sm text-gray-600">გასაგრძელებლად დაადასტურე შენი მიმდინარე პაროლი.</div>
 
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
                 <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
+                    <InputLabel htmlFor="password" value="პაროლი" />
 
                     <TextInput
                         id="password"
@@ -42,12 +39,12 @@ export default function ConfirmPassword() {
                         onChange={(e) => setData('password', e.target.value)}
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
+                    <InputError role="alert" message={errors.password} className="mt-2" />
                 </div>
 
                 <div className="mt-4 flex items-center justify-end">
                     <PrimaryButton className="ms-4" disabled={processing}>
-                        Confirm
+                        დადასტურება
                     </PrimaryButton>
                 </div>
             </form>

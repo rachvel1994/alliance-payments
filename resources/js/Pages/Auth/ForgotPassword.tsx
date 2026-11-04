@@ -25,13 +25,9 @@ export default function ForgotPassword({ status }: { status?: string }) {
                 მიუთითე ანგარიშის ელ. ფოსტა და გამოგიგზავნით პაროლის აღდგენის ბმულს.
             </div>
 
-            {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
+            {status && <div className="mb-4 text-sm font-medium text-green-600">{status}</div>}
 
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
                 <InputLabel htmlFor="email" value="ელ. ფოსტა" />
                 <TextInput
                     id="email"
@@ -45,7 +41,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     onChange={(e) => setData('email', e.target.value)}
                 />
 
-                <InputError message={errors.email} className="mt-2" />
+                <InputError role="alert" message={errors.email} className="mt-2" />
 
                 <div className="mt-4 flex items-center justify-end">
                     <PrimaryButton className="ms-4" disabled={processing}>
